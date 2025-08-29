@@ -6,7 +6,9 @@
   ],
   "compilerOptions": {
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "exclude": ["api"]
 }
