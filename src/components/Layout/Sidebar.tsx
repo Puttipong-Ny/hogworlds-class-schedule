@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Layout, Menu } from "antd";
 import {
   HomeOutlined,
@@ -21,7 +21,8 @@ type SidebarProps = {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ hook เอา path ปัจจุบันมาใช้
+  const location = useLocation(); 
+   const [openKeys, setOpenKeys] = useState<string[]>([])
 
   const menuItems = [
     {
@@ -36,22 +37,76 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
       label: "ตารางเรียน",
       children: [
         {
-          key: "/schedule-month",
-          icon: <ScheduleOutlined />,
-          label: "รายเดือน",
-          onClick: () => navigate("/schedule-month"),
+          key: "year-1",
+          label: "ปี 1",
+          children: [
+            {
+              key: "/year1/schedule-month",
+              icon: <ScheduleOutlined />,
+              label: "รายเดือน",
+              onClick: () => navigate("/year1/schedule-month"),
+            },
+            {
+              key: "/year1/schedule-week",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์",
+              onClick: () => navigate("/year1/schedule-week"),
+            },
+            {
+              key: "/year1/schedule-week-2",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์ แบบที่ 2",
+              onClick: () => navigate("/year1/schedule-week-2"),
+            },
+          ],
         },
         {
-          key: "/schedule-week",
-          icon: <SnippetsOutlined />,
-          label: "รายสัปดาห์",
-          onClick: () => navigate("/schedule-week"),
+          key: "year-2",
+          label: "ปี 2",
+          children: [
+            {
+              key: "/year2/schedule-month",
+              icon: <ScheduleOutlined />,
+              label: "รายเดือน",
+              onClick: () => navigate("/year2/schedule-month"),
+            },
+            {
+              key: "/year2/schedule-week",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์",
+              onClick: () => navigate("/year2/schedule-week"),
+            },
+            {
+              key: "/year2/schedule-week-2",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์ แบบที่ 2",
+              onClick: () => navigate("/year2/schedule-week-2"),
+            },
+          ],
         },
         {
-          key: "/schedule-week-2",
-          icon: <SnippetsOutlined />,
-          label: "รายสัปดาห์ แบบที่ 2",
-          onClick: () => navigate("/schedule-week-2"),
+          key: "year-3",
+          label: "ปี 3",
+          children: [
+            {
+              key: "/year3/schedule-month",
+              icon: <ScheduleOutlined />,
+              label: "รายเดือน",
+              onClick: () => navigate("/year3/schedule-month"),
+            },
+            {
+              key: "/year3/schedule-week",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์",
+              onClick: () => navigate("/year3/schedule-week"),
+            },
+            {
+              key: "/year3/schedule-week-2",
+              icon: <SnippetsOutlined />,
+              label: "รายสัปดาห์ แบบที่ 2",
+              onClick: () => navigate("/year3/schedule-week-2"),
+            },
+          ],
         },
       ],
     },
@@ -62,6 +117,25 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
       onClick: () => navigate("/setting-subject"),
     },
   ];
+
+  useEffect(() => {
+    const path = location.pathname;
+    const newOpenKeys: string[] = [];
+
+    menuItems.forEach((item) => {
+      if (item.children) {
+        item.children.forEach((child) => {
+          if (child.children?.some((sub) => sub.key === path)) {
+            newOpenKeys.push(item.key, child.key);
+          } else if (child.key === path) {
+            newOpenKeys.push(item.key);
+          }
+        });
+      }
+    });
+
+    setOpenKeys(newOpenKeys);
+  }, [location.pathname]);
 
   // ✅ คำนวณ openKeys สำหรับ submenu
   const currentPath = location.pathname;
@@ -88,12 +162,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
       {/* Menu */}
       <Menu
         mode="inline"
-        selectedKeys={[currentPath]}   // ✅ highlight เมนูตาม path จริง
-        defaultOpenKeys={defaultOpenKeys} // ✅ เปิด submenu ถ้าตรงกับ path
+        selectedKeys={[location.pathname]}
+        openKeys={openKeys}
+        onOpenChange={(keys) => setOpenKeys(keys as string[])}
         items={menuItems}
         style={{ flex: 1, borderRight: 0 }}
       />
-
       {/* Footer (Lang + User) */}
       <div className="border-t p-3 flex flex-col gap-2"></div>
 
@@ -110,4 +184,3 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
 };
 
 export default Sidebar;
-  

@@ -14,7 +14,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import locale from "antd/es/date-picker/locale/th_TH";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import * as AntdIcons from "@ant-design/icons";
 
 type EventItem = {
@@ -22,7 +22,8 @@ type EventItem = {
   subject: string;
   start: string;
   end: string;
-  date?: string;
+  date: string;
+  year?: string;
 };
 
 type SubjectItem = {
@@ -63,6 +64,8 @@ const LONG_PRESS_MS = 500;
 const ScheduleMonth: React.FC = () => {
   const navigate = useNavigate();
 
+  const { year } = useParams<{ year: string }>();
+
   const [value, setValue] = useState<Dayjs>(dayjs());
   const [events, setEvents] = useState<Record<string, EventItem[]>>({});
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -75,24 +78,31 @@ const ScheduleMonth: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [year]);
 
   const fetchData = async () => {
-    const [evRes, subRes] = await Promise.all([
-      fetch("/api/events"),
-      fetch("/api/subjects"),
-    ]);
-    const evData = await evRes.json();
-    const subData = await subRes.json();
+    try {
+      setLoading(true); // ✅ ก่อนโหลด
+      const [evRes, subRes] = await Promise.all([
+        fetch(`/api/events?year=${year}`),
+        fetch(`/api/subjects?year=${year}`),
+      ]);
+      const evData = await evRes.json();
+      const subData = await subRes.json();
 
-    const grouped = evData.reduce((acc: any, ev: any) => {
-      const key = dayjs(ev.date).format("YYYY-MM-DD");
-      acc[key] = [...(acc[key] || []), ev];
-      return acc;
-    }, {});
+      const grouped = evData.reduce((acc: any, ev: any) => {
+        const key = dayjs(ev.date).format("YYYY-MM-DD");
+        acc[key] = [...(acc[key] || []), ev];
+        return acc;
+      }, {});
 
-    setEvents(grouped);
-    setSubjects(subData);
+      setEvents(grouped);
+      setSubjects(subData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false); // ✅ เสร็จแล้ว
+    }
   };
 
   const cellRender = (date: Dayjs, info: { type: string }) => {
@@ -145,7 +155,7 @@ const ScheduleMonth: React.FC = () => {
 
   const handleSelect = (date: Dayjs, info: { source: string }) => {
     if (info.source === "date" && !isAddOpen) {
-      navigate(`/schedule-week?date=${date.format("YYYY-MM-DD")}`);
+      navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`)
     }
   };
 
@@ -161,19 +171,20 @@ const ScheduleMonth: React.FC = () => {
       }
 
       const values = await form.validateFields();
-
       setLoading(true);
 
       await Promise.all(
         values.subjects.flatMap((sub: any) =>
-          (sub.times || []).map((t: { start: Dayjs; end: Dayjs }) => {
+          (sub.times || []).map(async (t: { start: Dayjs; end: Dayjs }) => {
             const newEvent: EventItem = {
               subject: sub.subject,
               start: t.start.format("HH:mm"),
               end: t.end.format("HH:mm"),
-              date: selectedDate!.startOf("day").format("YYYY-MM-DD"),
+              date: selectedDate!.format("YYYY-MM-DD"),
+              year, // 👈 ส่งไปเก็บด้วย
             };
-            return fetch("/api/events", {
+
+            return fetch(`/api/events?year=${year}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(newEvent),
@@ -184,7 +195,6 @@ const ScheduleMonth: React.FC = () => {
 
       await fetchData();
       message.success("เพิ่มตารางเรียนเรียบร้อย ✅");
-
       setIsAddOpen(false);
       form.resetFields();
       setSelectedDate(null);
@@ -260,7 +270,10 @@ const ScheduleMonth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div className="p-6 bg-white rounded-xl shadow-lg" style={{ width: "1600px" }}>
+      <div
+        className="p-6 bg-white rounded-xl shadow-lg"
+        style={{ width: "1600px" }}
+      >
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           📅 ปฏิทินการเรียน
         </h2>
