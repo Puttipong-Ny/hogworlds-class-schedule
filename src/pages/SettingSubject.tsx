@@ -227,7 +227,7 @@ const SettingSubject: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg">
+    <div className="p-6 bg-white rounded-xl shadow-lg" style={{ width: "1600px" }}>
       <h2 className="text-2xl font-bold mb-4 text-gray-800">⚙️ ตั้งค่าวิชา</h2>
 
       <Space className="mb-4">
@@ -235,9 +235,9 @@ const SettingSubject: React.FC = () => {
           เพิ่มวิชา
         </Button>
 
-        <Button icon={<ReloadOutlined />} danger onClick={handleSeed}>
+        {/* <Button icon={<ReloadOutlined />} danger onClick={handleSeed}>
           Set Default
-        </Button>
+        </Button> */}
       </Space>
 
       <Table

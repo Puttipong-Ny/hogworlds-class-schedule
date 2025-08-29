@@ -102,7 +102,7 @@ const ScheduleWeek2: React.FC = () => {
   const resetToday = () => setCurrent(dayjs());
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg">
+    <div className="p-6 bg-white rounded-xl shadow-lg" style={{ width: "1600px" }}>
       {/* Toolbar + หัวข้อ */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
@@ -202,15 +202,13 @@ const ScheduleWeek2: React.FC = () => {
                           {cellEvents.map((ev) => (
                             <div
                               key={ev._id || `${ev.start}-${ev.end}`}
-                              className="px-1 py-1 rounded text-xs font-semibold text-white shadow-sm truncate"
+                              className="px-2 py-1 rounded text-xs font-semibold text-white shadow-sm flex items-center justify-center gap-1"
                               style={{
                                 background: `linear-gradient(90deg, ${sub.color}, ${sub.color}cc)`,
                               }}
                             >
-                              {renderDbIcon(sub.icon, 12, "#fff")}
-                              <span className="ml-1">
-                                {ev.start}–{ev.end}
-                              </span>
+                              {renderDbIcon(sub.icon, 14, "#fff")}
+                              <span className="text-center">{ev.start}</span>
                             </div>
                           ))}
                         </div>

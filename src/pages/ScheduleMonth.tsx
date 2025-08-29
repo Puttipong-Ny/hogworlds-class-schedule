@@ -260,7 +260,7 @@ const ScheduleMonth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div className="p-6 bg-white rounded-xl shadow-lg">
+      <div className="p-6 bg-white rounded-xl shadow-lg" style={{ width: "1600px" }}>
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           📅 ปฏิทินการเรียน
         </h2>
@@ -324,17 +324,50 @@ const ScheduleMonth: React.FC = () => {
                                   key={timeKey}
                                   className="flex items-center gap-2 mb-2"
                                 >
-                                  {/* เวลาเริ่ม */}
+                                  {/* โค้ดเดิมที่ใช้ 2 TimePicker (comment ไว้ก่อน) */}
+                                  {/*
+          <Form.Item
+            {...timeRest}
+            name={[timeName, "start"]}
+            rules={[{ required: true, message: "กรุณาเลือกเวลาเริ่ม" }]}
+            className="!mb-0"
+          >
+            <TimePicker
+              minuteStep={5}
+              needConfirm={false}
+              showNow={false}
+              format="HH:mm"
+              {...disabledConfig}
+            />
+          </Form.Item>
+          <span>ถึง</span>
+          <Form.Item
+            {...timeRest}
+            name={[timeName, "end"]}
+            rules={[{ required: true, message: "กรุณาเลือกเวลาสิ้นสุด" }]}
+            className="!mb-0"
+          >
+            <TimePicker
+              minuteStep={5}
+              needConfirm={false}
+              showNow={false}
+              format="HH:mm"
+              {...disabledConfig}
+            />
+          </Form.Item>
+          */}
+
+                                  {/* ✅ ใช้ TimePicker ตัวเดียว */}
                                   <Form.Item
                                     {...timeRest}
                                     name={[timeName, "start"]}
                                     rules={[
                                       {
                                         required: true,
-                                        message: "กรุณาเลือกเวลาเริ่ม",
+                                        message: "กรุณาเลือกเวลา",
                                       },
                                     ]}
-                                    className="!mb-0"
+                                    className="!mb-0 flex-1"
                                   >
                                     <TimePicker
                                       minuteStep={5}
@@ -342,29 +375,20 @@ const ScheduleMonth: React.FC = () => {
                                       showNow={false}
                                       format="HH:mm"
                                       {...disabledConfig}
-                                    />
-                                  </Form.Item>
-
-                                  <span>ถึง</span>
-
-                                  {/* เวลาสิ้นสุด */}
-                                  <Form.Item
-                                    {...timeRest}
-                                    name={[timeName, "end"]}
-                                    rules={[
-                                      {
-                                        required: true,
-                                        message: "กรุณาเลือกเวลาสิ้นสุด",
-                                      },
-                                    ]}
-                                    className="!mb-0"
-                                  >
-                                    <TimePicker
-                                      minuteStep={5}
-                                      needConfirm={false}
-                                      showNow={false}
-                                      format="HH:mm"
-                                      {...disabledConfig}
+                                      onChange={(val) => {
+                                        if (val) {
+                                          const end = val.add(1, "hour"); // ✅ auto +1 ชั่วโมง
+                                          form.setFieldValue(
+                                            [
+                                              "subjects",
+                                              name,
+                                              "times",
+                                              timeName,
+                                            ],
+                                            { start: val, end }
+                                          );
+                                        }
+                                      }}
                                     />
                                   </Form.Item>
 
@@ -373,7 +397,7 @@ const ScheduleMonth: React.FC = () => {
                                     className="px-2 py-1 bg-red-500 text-white rounded"
                                     onClick={() => removeTime(timeName)}
                                   >
-                                    ลบเวลา
+                                    ลบ
                                   </button>
                                 </div>
                               )
