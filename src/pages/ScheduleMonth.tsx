@@ -6,7 +6,9 @@ import {
   Select,
   TimePicker,
   Dropdown,
-  MenuProps,
+  message,
+  Spin,
+  Space,
 } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
@@ -17,7 +19,7 @@ import * as AntdIcons from "@ant-design/icons";
 
 type EventItem = {
   _id?: string;
-  subject: string; // ตอนนี้ยังเก็บเป็นชื่อ ถ้าจะปรับเป็น subjectId ได้
+  subject: string;
   start: string;
   end: string;
   date?: string;
@@ -31,79 +33,68 @@ type SubjectItem = {
   createdAt?: string;
 };
 
-const menuItems: MenuProps["items"] = [
-  { key: "select", label: "เลือก" },
+const menuItems = [
   { key: "add", label: "เพิ่ม" },
   { key: "delete", label: "ลบ" },
 ];
 
 function parseColor(color: any): string {
   if (!color) return "#888";
-
-  // ถ้าเก็บเป็น string อยู่แล้ว
   if (typeof color === "string") return color;
-
-  // ถ้ามี metaColor (จาก Antd ColorPicker)
   if (color.metaColor) {
     const { r, g, b, a } = color.metaColor;
     return `rgba(${r}, ${g}, ${b}, ${a ?? 1})`;
   }
-
-  // ถ้ามี r,g,b,a ตรง ๆ
   if ("r" in color && "g" in color && "b" in color) {
     const { r, g, b, a } = color;
     return `rgba(${r}, ${g}, ${b}, ${a ?? 1})`;
   }
-
   return "#888";
 }
 
-// 🛠 ฟังก์ชันหา icon จากชื่อ
 function getIcon(iconName: string, color: string) {
   const IconComponent = (AntdIcons as any)[iconName];
   if (!IconComponent) return null;
   return <IconComponent style={{ color, fontSize: 14 }} />;
 }
 
+const LONG_PRESS_MS = 500;
+
 const ScheduleMonth: React.FC = () => {
   const navigate = useNavigate();
 
-  //region state
   const [value, setValue] = useState<Dayjs>(dayjs());
   const [events, setEvents] = useState<Record<string, EventItem[]>>({});
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [form] = Form.useForm();
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
-  const [isActionOpen, setIsActionOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteList, setDeleteList] = useState<EventItem[]>([]);
-  //endregion
+  const [loading, setLoading] = useState(false); // ✅ loading state
 
-  // โหลด events + subjects
   useEffect(() => {
-    const fetchData = async () => {
-      const [evRes, subRes] = await Promise.all([
-        fetch("/api/events"),
-        fetch("/api/subjects"),
-      ]);
-
-      const evData = await evRes.json();
-      const subData = await subRes.json();
-
-      const grouped = evData.reduce((acc: any, ev: any) => {
-        const key = dayjs(ev.date).format("YYYY-MM-DD");
-        acc[key] = [...(acc[key] || []), ev];
-        return acc;
-      }, {});
-
-      setEvents(grouped);
-      setSubjects(subData);
-    };
     fetchData();
   }, []);
 
-  // ✅ render events ของแต่ละวัน
+  const fetchData = async () => {
+    const [evRes, subRes] = await Promise.all([
+      fetch("/api/events"),
+      fetch("/api/subjects"),
+    ]);
+    const evData = await evRes.json();
+    const subData = await subRes.json();
+
+    const grouped = evData.reduce((acc: any, ev: any) => {
+      const key = dayjs(ev.date).format("YYYY-MM-DD");
+      acc[key] = [...(acc[key] || []), ev];
+      return acc;
+    }, {});
+
+    setEvents(grouped);
+    setSubjects(subData);
+  };
+
   const cellRender = (date: Dayjs, info: { type: string }) => {
     if (info.type === "date") {
       const key = date.format("YYYY-MM-DD");
@@ -152,14 +143,13 @@ const ScheduleMonth: React.FC = () => {
     return null;
   };
 
-  // ✅ เปิด modal ตอนกดเลือกวัน
   const handleSelect = (date: Dayjs, info: { source: string }) => {
-    if (info.source === "date" && !isActionOpen && !isAddOpen) {
+    if (info.source === "date" && !isAddOpen) {
       navigate(`/schedule-week?date=${date.format("YYYY-MM-DD")}`);
     }
   };
 
-  // ✅ กดบันทึก
+  // ✅ กดบันทึก (เพิ่ม)
   const handleOk = async () => {
     try {
       if (!selectedDate) {
@@ -172,44 +162,76 @@ const ScheduleMonth: React.FC = () => {
 
       const values = await form.validateFields();
 
-      const newEvent: EventItem = {
-        subject: values.subject, // ตอนนี้เก็บ name (ถ้าอยากเก็บ _id แก้ตรงนี้)
-        start: values.time[0].format("HH:mm"),
-        end: values.time[1].format("HH:mm"),
-      };
+      setLoading(true);
 
-      await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newEvent,
-          date: selectedDate.startOf("day").format("YYYY-MM-DD"),
-        }),
-      });
+      await Promise.all(
+        values.subjects.flatMap((sub: any) =>
+          (sub.times || []).map((t: { start: Dayjs; end: Dayjs }) => {
+            const newEvent: EventItem = {
+              subject: sub.subject,
+              start: t.start.format("HH:mm"),
+              end: t.end.format("HH:mm"),
+              date: selectedDate!.startOf("day").format("YYYY-MM-DD"),
+            };
+            return fetch("/api/events", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newEvent),
+            });
+          })
+        )
+      );
 
-      const res = await fetch("/api/events");
-      const data = await res.json();
-      const grouped = data.reduce((acc: any, ev: any) => {
-        const key = dayjs(ev.date).format("YYYY-MM-DD");
-        acc[key] = [...(acc[key] || []), ev];
-        return acc;
-      }, {});
+      await fetchData();
+      message.success("เพิ่มตารางเรียนเรียบร้อย ✅");
 
-      setEvents(grouped);
       setIsAddOpen(false);
       form.resetFields();
       setSelectedDate(null);
     } catch (err) {
       console.error(err);
+      message.error("เพิ่มตารางเรียนล้มเหลว ❌");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // ✅ ลบพร้อม confirm
+  const handleDelete = (item: EventItem) => {
+    Modal.confirm({
+      title: "ยืนยันการลบ",
+      content: `คุณแน่ใจหรือไม่ว่าต้องการลบ "${item.subject}" เวลา ${item.start}-${item.end}?`,
+      okText: "ลบ",
+      cancelText: "ยกเลิก",
+      okButtonProps: { danger: true },
+      async onOk() {
+        setLoading(true);
+        try {
+          await fetch("/api/events", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: item._id }),
+          });
+          await fetchData();
+
+          setDeleteList(events[selectedDate?.format("YYYY-MM-DD") || ""] || []);
+          setIsDeleteOpen(false);
+          setSelectedDate(null);
+          message.success("ลบตารางเรียนเรียบร้อย ✅");
+        } catch (err) {
+          console.error(err);
+          message.error("ลบไม่สำเร็จ ❌");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleAction = (action: string, date: Dayjs) => {
     setSelectedDate(date);
 
-    if (action === "add") {
-      setIsAddOpen(true);
-    }
+    if (action === "add") setIsAddOpen(true);
 
     if (action === "delete") {
       const key = date.format("YYYY-MM-DD");
@@ -218,99 +240,275 @@ const ScheduleMonth: React.FC = () => {
     }
   };
 
+  const disabledConfig = {
+    disabledHours: () => {
+      const hours: number[] = [];
+      // ปิด 2–17
+      for (let h = 2; h < 18; h++) hours.push(h);
+      // ปิดชั่วโมง 18 ที่เกินครึ่ง
+      return hours;
+    },
+    disabledMinutes: (selectedHour?: number) => {
+      if (selectedHour === 18) {
+        return Array.from({ length: 60 }, (_, i) => (i > 30 ? i : null)).filter(
+          (v): v is number => v !== null
+        );
+      }
+      return [];
+    },
+  };
+
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        📅 ปฏิทินการเรียน
-      </h2>
-      <Calendar
-        value={value}
-        onSelect={handleSelect}
-        onPanelChange={(newValue) => setValue(newValue)}
-        cellRender={cellRender}
-        locale={locale}
-        fullscreen={true}
-        className="rounded-lg border shadow-sm"
-      />
+    <Spin spinning={loading}>
+      <div className="p-6 bg-white rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">
+          📅 ปฏิทินการเรียน
+        </h2>
+        <Calendar
+          value={value}
+          onSelect={handleSelect}
+          onPanelChange={(newValue) => setValue(newValue)}
+          cellRender={cellRender}
+          locale={locale}
+          fullscreen={true}
+          className="rounded-lg border shadow-sm"
+        />
 
-      {/* Modal เพิ่ม */}
-      <Modal
-        title={`เพิ่มตารางเรียน (${selectedDate?.format("DD/MM/YYYY")})`}
-        open={isAddOpen}
-        onOk={handleOk}
-        onCancel={() => setIsAddOpen(false)}
-        okText="บันทึก"
-        cancelText="ยกเลิก"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="subject"
-            label="วิชา"
-            rules={[{ required: true, message: "กรุณาเลือกวิชา" }]}
-          >
-            <Select placeholder="เลือกวิชา">
-              {subjects.map((s) => (
-                <Select.Option key={s._id} value={s.name}>
-                  {getIcon(s.icon, s.color)} {s.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+        {/* Modal เพิ่ม */}
+        <Modal
+          title={`เพิ่มตารางเรียน (${selectedDate?.format("DD/MM/YYYY")})`}
+          open={isAddOpen}
+          onOk={handleOk}
+          onCancel={() => setIsAddOpen(false)}
+          okText="บันทึก"
+          cancelText="ยกเลิก"
+          confirmLoading={loading}
+          width={600}
+        >
+          <Form form={form} layout="vertical">
+            <Form.List name="subjects">
+              {(subjectFields, { add: addSubject, remove: removeSubject }) => (
+                <>
+                  {subjectFields.map(({ key, name, ...restField }) => (
+                    <div
+                      key={key}
+                      className="border p-3 rounded mb-4 bg-gray-50"
+                    >
+                      {/* เลือกวิชา */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "subject"]}
+                        label="วิชา"
+                        rules={[{ required: true, message: "กรุณาเลือกวิชา" }]}
+                      >
+                        <Select placeholder="เลือกวิชา">
+                          {subjects.map((s) => (
+                            <Select.Option key={s._id} value={s.name}>
+                              {getIcon(s.icon, s.color)} {s.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-          <Form.Item
-            name="time"
-            label="เวลาเรียน"
-            rules={[{ required: true, message: "กรุณาเลือกเวลา" }]}
-          >
-            <TimePicker.RangePicker format="HH:mm" />
-          </Form.Item>
-        </Form>
-      </Modal>
+                      {/* ช่วงเวลาในวิชานั้น */}
+                      <Form.List name={[name, "times"]}>
+                        {(timeFields, { add: addTime, remove: removeTime }) => (
+                          <>
+                            {timeFields.map(
+                              ({
+                                key: timeKey,
+                                name: timeName,
+                                ...timeRest
+                              }) => (
+                                <div
+                                  key={timeKey}
+                                  className="flex items-center gap-2 mb-2"
+                                >
+                                  {/* เวลาเริ่ม */}
+                                  <Form.Item
+                                    {...timeRest}
+                                    name={[timeName, "start"]}
+                                    rules={[
+                                      {
+                                        required: true,
+                                        message: "กรุณาเลือกเวลาเริ่ม",
+                                      },
+                                    ]}
+                                    className="!mb-0"
+                                  >
+                                    <TimePicker
+                                      minuteStep={5}
+                                      needConfirm={false}
+                                      showNow={false}
+                                      format="HH:mm"
+                                      {...disabledConfig}
+                                    />
+                                  </Form.Item>
 
-      {/* Modal ลบ */}
-      <Modal
-        title={`ลบตารางเรียน (${selectedDate?.format("DD/MM/YYYY")})`}
-        open={isDeleteOpen}
-        onCancel={() => setIsDeleteOpen(false)}
-        footer={null}
-      >
-        <ul className="space-y-2">
-          {deleteList.map((item: any) => {
-            const subject = subjects.find((s) => s.name === item.subject);
-            return (
-              <li key={item._id} className="flex justify-between items-center">
-                <span>
-                  {subject?.name || item.subject} ({item.start}-{item.end})
-                </span>
+                                  <span>ถึง</span>
+
+                                  {/* เวลาสิ้นสุด */}
+                                  <Form.Item
+                                    {...timeRest}
+                                    name={[timeName, "end"]}
+                                    rules={[
+                                      {
+                                        required: true,
+                                        message: "กรุณาเลือกเวลาสิ้นสุด",
+                                      },
+                                    ]}
+                                    className="!mb-0"
+                                  >
+                                    <TimePicker
+                                      minuteStep={5}
+                                      needConfirm={false}
+                                      showNow={false}
+                                      format="HH:mm"
+                                      {...disabledConfig}
+                                    />
+                                  </Form.Item>
+
+                                  <button
+                                    type="button"
+                                    className="px-2 py-1 bg-red-500 text-white rounded"
+                                    onClick={() => removeTime(timeName)}
+                                  >
+                                    ลบเวลา
+                                  </button>
+                                </div>
+                              )
+                            )}
+
+                            <Form.Item>
+                              <button
+                                type="button"
+                                onClick={() => addTime()}
+                                className="px-3 py-1 bg-blue-500 text-white rounded"
+                              >
+                                + เพิ่มช่วงเวลา
+                              </button>
+                            </Form.Item>
+                          </>
+                        )}
+                      </Form.List>
+
+                      {/* ปุ่มลบวิชา */}
+                      <button
+                        type="button"
+                        className="px-3 py-1 bg-red-600 text-white rounded mt-2"
+                        onClick={() => removeSubject(name)}
+                      >
+                        ลบวิชา
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* ปุ่มเพิ่มวิชา */}
+                  <Form.Item>
+                    <button
+                      type="button"
+                      onClick={() => addSubject()}
+                      className="px-4 py-2 bg-green-600 text-white rounded"
+                    >
+                      + เพิ่มวิชา
+                    </button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form>
+        </Modal>
+
+        {/* Modal ลบ */}
+        <Modal
+          title={`ลบตารางเรียน (${selectedDate?.format("DD/MM/YYYY")})`}
+          open={isDeleteOpen}
+          onCancel={() => setIsDeleteOpen(false)}
+          footer={null}
+        >
+          {deleteList.length === 0 ? (
+            <p className="text-gray-500">ไม่มีตารางเรียนในวันนี้</p>
+          ) : (
+            <div className="space-y-2">
+              {deleteList.map((item) => {
+                const subject = subjects.find((s) => s.name === item.subject);
+                const color = parseColor(subject?.color);
+                const iconName = subject?.icon || "BookOutlined";
+                const name = subject?.name || item.subject;
+
+                return (
+                  <div
+                    key={item._id}
+                    className="flex items-center justify-between px-3 py-2 rounded shadow-sm"
+                    style={{
+                      background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+                      color: "white",
+                    }}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      {getIcon(iconName, "white")}
+                      <span className="truncate">
+                        {name} ({item.start}-{item.end})
+                      </span>
+                    </div>
+                    <button
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                      onClick={() => handleDelete(item)}
+                    >
+                      ลบ
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* ปุ่มลบทั้งหมด */}
+              <div className="flex justify-end pt-2">
                 <button
-                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                  onClick={async () => {
-                    await fetch("/api/events", {
-                      method: "DELETE",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: item._id }),
+                  className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800"
+                  onClick={() => {
+                    Modal.confirm({
+                      title: "ยืนยันการลบทั้งหมด",
+                      content: `คุณแน่ใจหรือไม่ว่าต้องการลบตารางเรียนทั้งหมดของวันที่ ${selectedDate?.format(
+                        "DD/MM/YYYY"
+                      )}?`,
+                      okText: "ลบทั้งหมด",
+                      cancelText: "ยกเลิก",
+                      okButtonProps: { danger: true },
+                      async onOk() {
+                        try {
+                          setLoading(true);
+                          await Promise.all(
+                            deleteList.map((ev) =>
+                              fetch("/api/events", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: ev._id }),
+                              })
+                            )
+                          );
+                          await fetchData();
+                          message.success("ลบตารางเรียนทั้งหมดเรียบร้อย ✅");
+
+                          setIsDeleteOpen(false);
+                          setSelectedDate(null);
+                        } catch (err) {
+                          console.error(err);
+                          message.error("ลบทั้งหมดไม่สำเร็จ ❌");
+                        } finally {
+                          setLoading(false);
+                        }
+                      },
                     });
-                    const res = await fetch("/api/events");
-                    const data = await res.json();
-                    const grouped = data.reduce((acc: any, ev: any) => {
-                      const key = dayjs(ev.date).format("YYYY-MM-DD");
-                      acc[key] = [...(acc[key] || []), ev];
-                      return acc;
-                    }, {});
-                    setEvents(grouped);
-                    setDeleteList(
-                      grouped[selectedDate?.format("YYYY-MM-DD") || ""] || []
-                    );
                   }}
                 >
-                  ลบ
+                  ลบทั้งหมด
                 </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Modal>
-    </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </Spin>
   );
 };
 

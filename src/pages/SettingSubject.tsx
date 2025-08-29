@@ -1,12 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Input, Select, ColorPicker } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  ColorPicker,
+  Space,
+  message,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import * as AntdIcons from "@ant-design/icons";
 
 type SubjectItem = {
   _id?: string;
   name: string;
-  color: string; // hex string
+  color: string;
   icon: string;
 };
 
@@ -24,57 +39,136 @@ const iconOptions = Object.keys(AntdIcons).map((key) => {
 
 const SettingSubject: React.FC = () => {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(
+    null
+  );
   const [form] = Form.useForm();
 
-  // ✅ โหลด subjects จาก DB
+  // ✅ โหลด subjects
   useEffect(() => {
     fetchSubjects();
   }, []);
 
   const fetchSubjects = async () => {
-    const res = await fetch("/api/subjects");
-    const data = await res.json();
-    setSubjects(data);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/subjects");
+      const data = await res.json();
+      setSubjects(data);
+    } catch (err) {
+      console.error(err);
+      message.error("โหลดข้อมูลไม่สำเร็จ ❌");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // เปิด Modal เพิ่ม
   const handleAdd = () => {
+    setEditingSubject(null);
+    form.resetFields();
     setIsModalOpen(true);
   };
 
+  // เปิด Modal แก้ไข
+  const handleEdit = (record: SubjectItem) => {
+    setEditingSubject(record);
+    form.setFieldsValue(record);
+    setIsModalOpen(true);
+  };
+
+  // ✅ กดบันทึก
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      const newSubject: SubjectItem = {
+      const payload: SubjectItem = {
         name: values.name,
         color:
           typeof values.color === "string"
             ? values.color
-            : values.color.toHexString(), // ✅ เก็บ hex
+            : values.color.toHexString(),
         icon: values.icon,
       };
 
-      await fetch("/api/subjects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSubject),
-      });
+      setLoading(true);
 
-      await fetchSubjects(); // โหลดใหม่จาก DB
+      if (editingSubject) {
+        // update
+        await fetch("/api/subjects", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingSubject._id, ...payload }),
+        });
+        message.success("แก้ไขวิชาเรียบร้อย ✅");
+      } else {
+        // create
+        await fetch("/api/subjects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        message.success("เพิ่มวิชาเรียบร้อย ✅");
+      }
+
+      await fetchSubjects();
       setIsModalOpen(false);
       form.resetFields();
     } catch (err) {
       console.error(err);
+      message.error("บันทึกไม่สำเร็จ ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    await fetch("/api/subjects", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+    Modal.confirm({
+      title: "ยืนยันการลบ",
+      content: "คุณแน่ใจหรือไม่ที่จะลบวิชานี้?",
+      okText: "ลบ",
+      okType: "danger",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        setLoading(true);
+        try {
+          await fetch("/api/subjects", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+          message.success("ลบวิชาเรียบร้อย ✅");
+          await fetchSubjects();
+        } catch (err) {
+          console.error(err);
+          message.error("ลบไม่สำเร็จ ❌");
+        } finally {
+          setLoading(false);
+        }
+      },
     });
-    await fetchSubjects(); 
+  };
+
+  const handleSeed = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/subjects/seed", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        message.success(
+          `Reset และ Insert default ${data.inserted} วิชาแล้ว ✅`
+        );
+        fetchSubjects();
+      } else {
+        message.error("Set Default ล้มเหลว ❌");
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Set Default ล้มเหลว ❌");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const columns = [
@@ -111,9 +205,23 @@ const SettingSubject: React.FC = () => {
       title: "จัดการ",
       key: "action",
       render: (_: any, record: SubjectItem) => (
-        <Button danger onClick={() => handleDelete(record._id!)}>
-          ลบ
-        </Button>
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            แก้ไข
+          </Button>
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record._id!)}
+          >
+            ลบ
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -122,29 +230,34 @@ const SettingSubject: React.FC = () => {
     <div className="p-6 bg-white rounded-xl shadow-lg">
       <h2 className="text-2xl font-bold mb-4 text-gray-800">⚙️ ตั้งค่าวิชา</h2>
 
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={handleAdd}
-        style={{ marginBottom: 16 }}
-      >
-        เพิ่มวิชา
-      </Button>
+      <Space className="mb-4">
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          เพิ่มวิชา
+        </Button>
+
+        <Button icon={<ReloadOutlined />} danger onClick={handleSeed}>
+          Set Default
+        </Button>
+      </Space>
 
       <Table
+        loading={loading}
         dataSource={subjects}
         columns={columns}
         rowKey="_id"
         pagination={false}
+        bordered
+        scroll={{ y: "calc(100vh - 300px)" }}
       />
 
       <Modal
-        title="เพิ่มวิชา"
+        title={editingSubject ? "แก้ไขวิชา" : "เพิ่มวิชา"}
         open={isModalOpen}
         onOk={handleOk}
         onCancel={() => setIsModalOpen(false)}
         okText="บันทึก"
         cancelText="ยกเลิก"
+        confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
           <Form.Item

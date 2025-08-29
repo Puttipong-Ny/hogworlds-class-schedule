@@ -5,7 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { Tooltip } from "antd";
 import * as AntdIcons from "@ant-design/icons";
 
-
 type EventItem = {
   _id?: string;
   subject: string;
@@ -31,7 +30,6 @@ const hours = Array.from({ length: 13 }, (_, i) => {
   const m = totalMinutes % 60;
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 });
-
 
 // 🛠 จัด row ของ event (กันทับเวลา)
 function assignRows(events: EventItem[]): EventItem[][] {
@@ -88,7 +86,12 @@ const ScheduleWeek: React.FC = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [searchParams] = useSearchParams();
   const dateParam = searchParams.get("date");
-  const [current] = useState<Dayjs>(dateParam ? dayjs(dateParam) : dayjs());
+
+  // ใช้ state เพื่อเลื่อนสัปดาห์
+  const [current, setCurrent] = useState<Dayjs>(
+    dateParam ? dayjs(dateParam) : dayjs()
+  );
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [slotWidth, setSlotWidth] = useState(0);
 
@@ -123,8 +126,6 @@ const ScheduleWeek: React.FC = () => {
 
       setEvents(evData);
       setSubjects(subData);
-
-      console.log("subRes ", subData); // ✅ ใช้ค่าจริงที่เพิ่ง fetch
     };
     fetchData();
   }, []);
@@ -135,15 +136,43 @@ const ScheduleWeek: React.FC = () => {
 
   const rowHeight = 32;
 
+  // ✅ ฟังก์ชันเลื่อนสัปดาห์
+  const prevWeek = () => setCurrent(current.subtract(1, "week"));
+  const nextWeek = () => setCurrent(current.add(1, "week"));
+  const resetToday = () => setCurrent(dayjs());
+
   return (
     <div
       className="p-6 bg-white rounded-xl shadow-lg"
       style={{ width: "1600px" }}
     >
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        👥 ปฏิทินรายสัปดาห์ ({weekStart.format("DD/MM/YYYY")} –{" "}
-        {weekEnd.format("DD/MM/YYYY")})
-      </h2>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={prevWeek}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            ◀ สัปดาห์ก่อน
+          </button>
+          <button
+            onClick={nextWeek}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            สัปดาห์ถัดไป ▶
+          </button>
+          <button
+            onClick={resetToday}
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            วันนี้
+          </button>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800">
+          👥 ปฏิทินรายสัปดาห์ ({weekStart.format("DD/MM/YYYY")} –{" "}
+          {weekEnd.format("DD/MM/YYYY")})
+        </h2>
+      </div>
 
       {/* Header เวลา */}
       <div className="grid grid-cols-[150px_1fr] border-b">
@@ -169,20 +198,32 @@ const ScheduleWeek: React.FC = () => {
         const rows = assignRows(dayEvents);
         const height = Math.max(60, rows.length * rowHeight + 8);
 
+        // ✅ เช็คว่าวันนี้ไหม
+        const isToday = dayDate.isSame(dayjs(), "day");
+
         return (
           <div
             key={day}
-            className="grid grid-cols-[150px_1fr] border-b relative"
-            style={{ height: `${height}px` }}
+            className={`grid grid-cols-[150px_1fr] border-b relative ${
+              isToday ? "bg-blue-50" : ""
+            }`}
+            style={{
+              height: `${height}px`,
+              borderLeft: isToday ? "4px solid #3b82f6" : undefined, // เส้นสีฟ้าด้านซ้าย
+            }}
           >
             {/* คอลัมน์ชื่อวัน */}
-            <div className="flex items-start justify-center bg-gray-50 font-medium pt-2">
+            <div
+              className={`flex flex-col items-center justify-start font-medium pt-2 ${
+                isToday ? "text-blue-600" : ""
+              }`}
+            >
               {day}
+              <span className="text-xs">{dayDate.format("DD/MM")}</span>
             </div>
 
             {/* เส้น timeline */}
             <div className="relative flex-1 border-l" ref={containerRef}>
-              {/* เส้นเวลา */}
               <div className="absolute inset-0 flex">
                 {hours.map((_, i) => (
                   <div

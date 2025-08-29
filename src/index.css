@@ -27,3 +27,10 @@ body {
 .ant-btn-primary {
   @apply bg-blue-500 hover:bg-blue-600 text-white;
 }
+
+.ant-picker-cell-inner {
+  height: auto !important;
+  min-height: 80px; /* กำหนดความสูงขั้นต่ำ */
+  align-items: flex-start !important;
+  padding: 4px;
+}

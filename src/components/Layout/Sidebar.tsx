@@ -38,22 +38,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
         {
           key: "/schedule-month",
           icon: <ScheduleOutlined />,
-          label: "ปฏิทินรายเดือน",
+          label: "รายเดือน",
           onClick: () => navigate("/schedule-month"),
         },
         {
           key: "/schedule-week",
           icon: <SnippetsOutlined />,
-          label: "ปฏิทินรายสัปดาห์",
+          label: "รายสัปดาห์",
           onClick: () => navigate("/schedule-week"),
         },
+        {
+          key: "/schedule-week-2",
+          icon: <SnippetsOutlined />,
+          label: "รายสัปดาห์ แบบที่ 2",
+          onClick: () => navigate("/schedule-week-2"),
+        },
       ],
-    },
-    {
-      key: "/workshop",
-      icon: <AppstoreOutlined />,
-      label: "Workshop",
-      onClick: () => navigate("/workshop"),
     },
     {
       key: "/setting-subject",

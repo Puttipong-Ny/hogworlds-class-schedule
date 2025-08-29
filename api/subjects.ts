@@ -33,17 +33,47 @@ export default async function handler(
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ✅ ตรวจสอบว่า color เป็น string
     if (typeof color !== "string" || !color.startsWith("#")) {
       return res.status(400).json({ error: "Color must be hex string" });
     }
 
     const result = await subjects.insertOne({
       name,
-      color, // ✅ hex เช่น "#ffcc00"
+      color,
       icon,
       createdAt: new Date(),
     });
+    return res.status(200).json(result);
+  }
+
+  if (req.method === "PUT") {
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const { id, name, color, icon } = body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Missing subject id" });
+    }
+
+    const subject = await subjects.findOne({ _id: new ObjectId(id) });
+    if (!subject) {
+      return res.status(404).json({ error: "Subject not found" });
+    }
+
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (color) {
+      if (typeof color !== "string" || !color.startsWith("#")) {
+        return res.status(400).json({ error: "Color must be hex string" });
+      }
+      updateData.color = color;
+    }
+    if (icon) updateData.icon = icon;
+
+    const result = await subjects.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { ...updateData, updatedAt: new Date() } }
+    );
+
     return res.status(200).json(result);
   }
 
@@ -55,10 +85,8 @@ export default async function handler(
         return res.status(404).json({ error: "Subject not found" });
       }
 
-      // ✅ ลบรายวิชา
       const result = await subjects.deleteOne({ _id: new ObjectId(body.id) });
 
-      // ✅ ลบตารางเรียน (events) ที่ใช้รายวิชานี้
       const eventsCol = client.db("ravenclaw").collection("events");
       await eventsCol.deleteMany({ subject: subject.name });
 

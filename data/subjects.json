@@ -1,0 +1,16 @@
+[
+  { "name": "คาถา", "color": "#f87171", "icon": "BookOutlined" },
+  { "name": "ป้องกันตัวจากศาสตร์มืด", "color": "#60a5fa", "icon": "BugOutlined" },
+  { "name": "แปลงกาย", "color": "#34d399", "icon": "ExperimentOutlined" },
+  { "name": "ปรุงยา", "color": "#fbbf24", "icon": "MedicineBoxOutlined" },
+  { "name": "สัตว์วิเศษ", "color": "#a78bfa", "icon": "RocketOutlined" },
+  { "name": "ดาราศาสตร์", "color": "#fb923c", "icon": "StarOutlined" },
+  { "name": "เล่นแร่แปรธาตุ", "color": "#14b8a6", "icon": "ExperimentOutlined" },
+  { "name": "การพยากรณ์", "color": "#f472b6", "icon": "EyeOutlined" },
+  { "name": "สมุนไพร", "color": "#10b981", "icon": "MedicineBoxOutlined" },
+  { "name": "ประวัติศาสตร์เวทมนตร์", "color": "#facc15", "icon": "HistoryOutlined" },
+  { "name": "มักเกิ้ลศึกษา", "color": "#38bdf8", "icon": "UserOutlined" },
+  { "name": "การบิน", "color": "#6366f1", "icon": "RocketOutlined" },
+  { "name": "ตัวเลขมหัศจรรย์", "color": "#22d3ee", "icon": "CalculatorOutlined" },
+  { "name": "ตัวอักษรรูน", "color": "#ef4444", "icon": "FontSizeOutlined" }
+]
