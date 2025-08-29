@@ -35,6 +35,7 @@ type SubjectItem = {
 };
 
 const menuItems = [
+  { key: "gotoWeek", label: "เลือก" },
   { key: "add", label: "เพิ่ม" },
   { key: "delete", label: "ลบ" },
 ];
@@ -119,9 +120,9 @@ const ScheduleMonth: React.FC = () => {
               handleAction(key, date);
             },
           }}
-          trigger={["contextMenu"]}
+          trigger={["click", "contextMenu"]} // 👈 ซ้าย/ขวาเหมือนกัน
         >
-          <div className="h-full w-full p-1">
+          <div className="h-full w-full p-1 cursor-pointer">
             <ul className="space-y-1">
               {listData.map((item, index) => {
                 const subject = subjects.find((s) => s.name === item.subject);
@@ -153,11 +154,11 @@ const ScheduleMonth: React.FC = () => {
     return null;
   };
 
-  const handleSelect = (date: Dayjs, info: { source: string }) => {
-    if (info.source === "date" && !isAddOpen) {
-      navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`)
-    }
-  };
+  // const handleSelect = (date: Dayjs, info: { source: string }) => {
+  //   if (info.source === "date" && !isAddOpen) {
+  //     navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`);
+  //   }
+  // };
 
   // ✅ กดบันทึก (เพิ่ม)
   const handleOk = async () => {
@@ -248,6 +249,10 @@ const ScheduleMonth: React.FC = () => {
       setDeleteList(events[key] || []);
       setIsDeleteOpen(true);
     }
+
+    if (action === "gotoWeek") {
+      navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`);
+    }
   };
 
   const disabledConfig = {
@@ -279,7 +284,7 @@ const ScheduleMonth: React.FC = () => {
         </h2>
         <Calendar
           value={value}
-          onSelect={handleSelect}
+          // onSelect={handleSelect}
           onPanelChange={(newValue) => setValue(newValue)}
           cellRender={cellRender}
           locale={locale}
