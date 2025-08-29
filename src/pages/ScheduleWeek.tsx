@@ -5,14 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { Tooltip } from "antd";
 import * as AntdIcons from "@ant-design/icons";
 
-import {
-  BookOutlined,
-  ExperimentOutlined,
-  RocketOutlined,
-  BugOutlined,
-  StarOutlined,
-  MedicineBoxOutlined,
-} from "@ant-design/icons";
 
 type EventItem = {
   _id?: string;
@@ -40,35 +32,6 @@ const hours = Array.from({ length: 13 }, (_, i) => {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 });
 
-// 🎨 สีแตกต่างอัตโนมัติ
-const colors = [
-  "#f87171",
-  "#60a5fa",
-  "#34d399",
-  "#fbbf24",
-  "#a78bfa",
-  "#fb923c",
-  "#14b8a6",
-];
-const getColorForSubject = (subject: string) => {
-  let hash = 0;
-  for (let i = 0; i < subject.length; i++) {
-    hash = subject.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
-
-// 🎯 map subject → icon
-const getIconForSubject = (subject: string) => {
-  if (subject.includes("คาถา")) return <BookOutlined />;
-  if (subject.includes("แปรธาตุ")) return <ExperimentOutlined />;
-  if (subject.includes("การบิน")) return <RocketOutlined />;
-  if (subject.includes("สัตว์")) return <BugOutlined />;
-  if (subject.includes("ดาราศาสตร์")) return <StarOutlined />;
-  if (subject.includes("สมุนไพร") || subject.includes("ยา"))
-    return <MedicineBoxOutlined />;
-  return <BookOutlined />;
-};
 
 // 🛠 จัด row ของ event (กันทับเวลา)
 function assignRows(events: EventItem[]): EventItem[][] {
@@ -101,7 +64,6 @@ const parseTime = (time: string) => {
 const startMinutes = parseTime("19:00"); // 19:00 = 1140
 let endMinutes = parseTime("01:00"); // 01:00 = 60
 if (endMinutes < startMinutes) endMinutes += 24 * 60; // ข้ามวันใหม่
-const totalMinutesRange = endMinutes - startMinutes; // 360 นาที
 
 const slotCount = hours.length; // 13 ช่อง (19:00 - 01:00)
 
