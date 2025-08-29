@@ -1,29 +1,40 @@
-import { VercelRequest, VercelResponse } from "@vercel/node"
-import { MongoClient } from "mongodb"
-import subjects from "../../data/subjects.json" assert { type: "json" }
+import type { IncomingMessage, ServerResponse } from "http";
+import { MongoClient } from "mongodb";
+import subjects from "../../data/subjects.json" assert { type: "json" };
 
-let client: MongoClient
+let client: MongoClient;
 
 async function connectDB() {
   if (!client) {
-    client = new MongoClient(process.env.MONGO_URI!)
-    await client.connect()
+    client = new MongoClient(process.env.MONGO_URI!);
+    await client.connect();
   }
-  return client.db("ravenclaw").collection("subjects")
+  return client.db("ravenclaw").collection("subjects");
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(
+  req: IncomingMessage & { method?: string },
+  res: ServerResponse
+) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" })
+    res.statusCode = 405;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Method not allowed" }));
+    return;
   }
 
   try {
-    const col = await connectDB()
-    await col.deleteMany({})
-    const result = await col.insertMany(subjects)
-    res.status(200).json({ ok: true, inserted: result.insertedCount })
+    const col = await connectDB();
+    await col.deleteMany({});
+    const result = await col.insertMany(subjects);
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: true, inserted: result.insertedCount }));
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: "Insert failed" })
+    console.error(err);
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Insert failed" }));
   }
 }
