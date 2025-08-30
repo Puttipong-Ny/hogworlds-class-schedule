@@ -4,6 +4,8 @@ import "dayjs/locale/th";
 import { useSearchParams, useParams } from "react-router-dom";
 import { Tooltip, Spin } from "antd";
 import * as AntdIcons from "@ant-design/icons";
+import isoWeek from "dayjs/plugin/isoWeek";
+dayjs.extend(isoWeek);
 
 type EventItem = {
   _id?: string;
@@ -100,6 +102,11 @@ const ScheduleWeek: React.FC = () => {
     if (!IconComponent) return null;
     return <IconComponent style={{ color, fontSize: 14 }} />;
   }
+  useEffect(() => {
+    if (dateParam) {
+      setCurrent(dayjs(dateParam));
+    }
+  }, [dateParam]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -137,8 +144,8 @@ const ScheduleWeek: React.FC = () => {
   };
 
   // สัปดาห์ปัจจุบัน (จันทร์ - อาทิตย์)
-  const weekStart = current.startOf("week").add(1, "day");
-  const weekEnd = weekStart.add(6, "day");
+  const weekStart = current.startOf("isoWeek"); // ✅ เริ่มวันจันทร์
+  const weekEnd = current.endOf("isoWeek"); // ✅ จบวันอาทิตย์
   const rowHeight = 32;
 
   // ✅ ฟังก์ชันเลื่อนสัปดาห์
@@ -150,7 +157,7 @@ const ScheduleWeek: React.FC = () => {
     <Spin spinning={loading}>
       <div
         className="p-6 bg-white rounded-xl shadow-lg"
-        style={{ width: "1600px" }}
+        style={{ width: "auto" }}
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-4">

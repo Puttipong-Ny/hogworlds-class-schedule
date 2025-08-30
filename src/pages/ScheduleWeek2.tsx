@@ -6,7 +6,9 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useSearchParams, useParams } from "react-router-dom";
 import { Tooltip, Spin } from "antd";
 import * as AntdIcons from "@ant-design/icons";
+import isoWeek from "dayjs/plugin/isoWeek";
 
+dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 
@@ -70,8 +72,8 @@ const ScheduleWeek2: React.FC = () => {
   }, [year]);
 
   // สัปดาห์: จันทร์-อาทิตย์
-  const weekStart = current.startOf("week").add(1, "day");
-  const weekEnd = weekStart.add(6, "day");
+  const weekStart = current.startOf("isoWeek"); // ✅ เริ่มวันจันทร์
+  const weekEnd = current.endOf("isoWeek"); // ✅ จบวันอาทิตย์
 
   // ดึง event ในช่วงสัปดาห์นี้
   const weekEvents = events.filter(
@@ -116,7 +118,7 @@ const ScheduleWeek2: React.FC = () => {
     <Spin spinning={loading}>
       <div
         className="p-6 bg-white rounded-xl shadow-lg"
-        style={{ width: "1600px" }}
+        style={{ width: "auto" }}
       >
         {/* Toolbar + หัวข้อ */}
         <div className="flex justify-between items-center mb-4">

@@ -24,6 +24,7 @@ type EventItem = {
   end: string;
   date: string;
   year?: string;
+  location?: string;
 };
 
 type SubjectItem = {
@@ -32,6 +33,11 @@ type SubjectItem = {
   color: string;
   icon: string;
   createdAt?: string;
+};
+
+type LocationItem = {
+  _id: string;
+  name: string;
 };
 
 const menuItems = [
@@ -75,10 +81,12 @@ const ScheduleMonth: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteList, setDeleteList] = useState<EventItem[]>([]);
+  const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false); // ✅ loading state
 
   useEffect(() => {
     fetchData();
+    fetchLocations();
   }, [year]);
 
   const fetchData = async () => {
@@ -103,6 +111,16 @@ const ScheduleMonth: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false); // ✅ เสร็จแล้ว
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const res = await fetch("/api/locations");
+      const data = await res.json();
+      setLocations(data);
+    } catch (err) {
+      console.error("โหลดสถานที่ไม่สำเร็จ", err);
     }
   };
 
@@ -182,7 +200,8 @@ const ScheduleMonth: React.FC = () => {
               start: t.start.format("HH:mm"),
               end: t.end.format("HH:mm"),
               date: selectedDate!.format("YYYY-MM-DD"),
-              year, // 👈 ส่งไปเก็บด้วย
+              year,
+              location: sub.location, // ✅ เก็บสถานที่
             };
 
             return fetch(`/api/events?year=${year}`, {
@@ -251,7 +270,7 @@ const ScheduleMonth: React.FC = () => {
     }
 
     if (action === "gotoWeek") {
-      navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`);
+      navigate(`/${year}/schedule?tab=week&date=${date.format("YYYY-MM-DD")}`);
     }
   };
 
@@ -275,10 +294,7 @@ const ScheduleMonth: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div
-        className="p-6 bg-white rounded-xl shadow-lg"
-        style={{ width: "1600px" }}
-      >
+      <div className="p-6 bg-white rounded-xl shadow-lg">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           📅 ปฏิทินการเรียน
         </h2>
@@ -323,6 +339,28 @@ const ScheduleMonth: React.FC = () => {
                           {subjects.map((s) => (
                             <Select.Option key={s._id} value={s.name}>
                               {getIcon(s.icon, s.color)} {s.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+
+                      {/* ✅ เลือกสถานที่ */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "location"]}
+                        label="สถานที่"
+                        rules={[
+                          { required: true, message: "กรุณาเลือกสถานที่" },
+                        ]}
+                      >
+                        <Select
+                          placeholder="เลือกสถานที่"
+                          allowClear
+                          showSearch
+                        >
+                          {locations.map((loc) => (
+                            <Select.Option key={loc._id} value={loc.name}>
+                              {loc.name}
                             </Select.Option>
                           ))}
                         </Select>
@@ -490,7 +528,8 @@ const ScheduleMonth: React.FC = () => {
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       {getIcon(iconName, "white")}
                       <span className="truncate">
-                        {name} ({item.start}-{item.end})
+                        {name} ({item.start}-{item.end}){" "}
+                        {item.location ? `📍${item.location}` : ""}
                       </span>
                     </div>
                     <button

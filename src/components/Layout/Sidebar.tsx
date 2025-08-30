@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Layout, Menu } from "antd";
+import { Layout, Menu, type MenuProps } from "antd";
 import {
   HomeOutlined,
   SettingOutlined,
@@ -8,6 +8,7 @@ import {
   MenuFoldOutlined,
   ScheduleOutlined,
   SnippetsOutlined,
+  EnvironmentOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../../assets/ravenclaw.png";
@@ -19,12 +20,135 @@ type SidebarProps = {
   toggleCollapse: () => void;
 };
 
+// ✅ อ่านค่า cookie
+function getCookie(name: string) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift();
+  return null;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
   const navigate = useNavigate();
-  const location = useLocation(); 
-   const [openKeys, setOpenKeys] = useState<string[]>([])
+  const location = useLocation();
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
 
-  const menuItems = [
+  // ✅ อ่านค่าชั้นปีและ flag จาก cookie
+  const savedYears = getCookie("userYears")?.split(",") || ["1"];
+  const mainYear = getCookie("mainYear") || savedYears[0] || "1";
+  // ✅ สร้างเมนูรายปี
+  const classScheduleChildren: MenuProps["items"] = [];
+
+  // if (savedYears.includes("1")) {
+  //   classScheduleChildren.push({
+  //     key: "year-1",
+  //     label: "ปี 1",
+  //     children: [
+  //       {
+  //         key: "/year1/schedule-month",
+  //         icon: <ScheduleOutlined />,
+  //         label: "รายเดือน",
+  //         onClick: () => navigate("/year1/schedule-month"),
+  //       },
+  //       {
+  //         key: "/year1/schedule-week",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์",
+  //         onClick: () => navigate("/year1/schedule-week"),
+  //       },
+  //       {
+  //         key: "/year1/schedule-week-2",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์ แบบที่ 2",
+  //         onClick: () => navigate("/year1/schedule-week-2"),
+  //       },
+  //     ],
+  //   });
+  // }
+
+  // if (savedYears.includes("2")) {
+  //   classScheduleChildren.push({
+  //     key: "year-2",
+  //     label: "ปี 2",
+  //     children: [
+  //       {
+  //         key: "/year2/schedule-month",
+  //         icon: <ScheduleOutlined />,
+  //         label: "รายเดือน",
+  //         onClick: () => navigate("/year2/schedule-month"),
+  //       },
+  //       {
+  //         key: "/year2/schedule-week",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์",
+  //         onClick: () => navigate("/year2/schedule-week"),
+  //       },
+  //       {
+  //         key: "/year2/schedule-week-2",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์ แบบที่ 2",
+  //         onClick: () => navigate("/year2/schedule-week-2"),
+  //       },
+  //     ],
+  //   });
+  // }
+
+  // if (savedYears.includes("3")) {
+  //   classScheduleChildren.push({
+  //     key: "year-3",
+  //     label: "ปี 3",
+  //     children: [
+  //       {
+  //         key: "/year3/schedule-month",
+  //         icon: <ScheduleOutlined />,
+  //         label: "รายเดือน",
+  //         onClick: () => navigate("/year3/schedule-month"),
+  //       },
+  //       {
+  //         key: "/year3/schedule-week",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์",
+  //         onClick: () => navigate("/year3/schedule-week"),
+  //       },
+  //       {
+  //         key: "/year3/schedule-week-2",
+  //         icon: <SnippetsOutlined />,
+  //         label: "รายสัปดาห์ แบบที่ 2",
+  //         onClick: () => navigate("/year3/schedule-week-2"),
+  //       },
+  //     ],
+  //   });
+  // }
+
+  if (savedYears.includes("1")) {
+    classScheduleChildren.push({
+      key: "/year1/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 1",
+      onClick: () => navigate("/year1/schedule"),
+    });
+  }
+
+  if (savedYears.includes("2")) {
+    classScheduleChildren.push({
+      key: "/year2/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 2",
+      onClick: () => navigate("/year2/schedule"),
+    });
+  }
+
+  if (savedYears.includes("3")) {
+    classScheduleChildren.push({
+      key: "/year3/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 3",
+      onClick: () => navigate("/year3/schedule"),
+    });
+  }
+
+  // ✅ menuItems หลัก
+  const menuItems: MenuProps["items"] = [
     {
       key: "/",
       icon: <HomeOutlined />,
@@ -35,100 +159,58 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
       key: "class-schedule",
       icon: <AppstoreOutlined />,
       label: "ตารางเรียน",
-      children: [
-        {
-          key: "year-1",
-          label: "ปี 1",
-          children: [
-            {
-              key: "/year1/schedule-month",
-              icon: <ScheduleOutlined />,
-              label: "รายเดือน",
-              onClick: () => navigate("/year1/schedule-month"),
-            },
-            {
-              key: "/year1/schedule-week",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์",
-              onClick: () => navigate("/year1/schedule-week"),
-            },
-            {
-              key: "/year1/schedule-week-2",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์ แบบที่ 2",
-              onClick: () => navigate("/year1/schedule-week-2"),
-            },
-          ],
-        },
-        {
-          key: "year-2",
-          label: "ปี 2",
-          children: [
-            {
-              key: "/year2/schedule-month",
-              icon: <ScheduleOutlined />,
-              label: "รายเดือน",
-              onClick: () => navigate("/year2/schedule-month"),
-            },
-            {
-              key: "/year2/schedule-week",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์",
-              onClick: () => navigate("/year2/schedule-week"),
-            },
-            {
-              key: "/year2/schedule-week-2",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์ แบบที่ 2",
-              onClick: () => navigate("/year2/schedule-week-2"),
-            },
-          ],
-        },
-        {
-          key: "year-3",
-          label: "ปี 3",
-          children: [
-            {
-              key: "/year3/schedule-month",
-              icon: <ScheduleOutlined />,
-              label: "รายเดือน",
-              onClick: () => navigate("/year3/schedule-month"),
-            },
-            {
-              key: "/year3/schedule-week",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์",
-              onClick: () => navigate("/year3/schedule-week"),
-            },
-            {
-              key: "/year3/schedule-week-2",
-              icon: <SnippetsOutlined />,
-              label: "รายสัปดาห์ แบบที่ 2",
-              onClick: () => navigate("/year3/schedule-week-2"),
-            },
-          ],
-        },
-      ],
+      children: classScheduleChildren,
     },
     {
-      key: "/setting-subject",
+      key: "/map",
+      icon: <EnvironmentOutlined />,
+      label: "แผนที่",
+      onClick: () => navigate("/map"),
+    },
+    {
+      key: "/setting",
       icon: <SettingOutlined />,
       label: "ตั้งค่า",
-      onClick: () => navigate("/setting-subject"),
+      onClick: () => navigate("/setting"),
+      // children: [
+      //   {
+      //     key: "/setting-year",
+      //     icon: <SettingOutlined />,
+      //     label: "รายชั้นปี",
+      //     onClick: () => navigate("/setting-year"),
+      //   },
+      //   {
+      //     key: "/setting-subject",
+      //     icon: <SettingOutlined />,
+      //     label: "รายวิชา",
+      //     onClick: () => navigate("/setting-subject"),
+      //   },
+      //   {
+      //     key: "/setting-location",
+      //     icon: <SettingOutlined />,
+      //     label: "ตั้สถานที่",
+      //     onClick: () => navigate("/setting-location"),
+      //   },
+      // ],
     },
   ];
 
+  // ✅ จัดการ openKeys เวลาเปลี่ยน path
   useEffect(() => {
     const path = location.pathname;
     const newOpenKeys: string[] = [];
 
     menuItems.forEach((item) => {
-      if (item.children) {
+      if (item && "children" in item && item.children) {
         item.children.forEach((child) => {
-          if (child.children?.some((sub) => sub.key === path)) {
-            newOpenKeys.push(item.key, child.key);
-          } else if (child.key === path) {
-            newOpenKeys.push(item.key);
+          if (
+            child &&
+            "children" in child &&
+            child.children?.some((sub) => sub?.key === path)
+          ) {
+            newOpenKeys.push(item.key as string, child.key as string);
+          } else if (child?.key === path) {
+            newOpenKeys.push(item.key as string);
           }
         });
       }
@@ -136,12 +218,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
 
     setOpenKeys(newOpenKeys);
   }, [location.pathname]);
-
-  // ✅ คำนวณ openKeys สำหรับ submenu
-  const currentPath = location.pathname;
-  const defaultOpenKeys = menuItems
-    .filter((item) => item.children?.some((child) => child.key === currentPath))
-    .map((item) => item.key);
 
   return (
     <Sider
@@ -168,10 +244,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
         items={menuItems}
         style={{ flex: 1, borderRight: 0 }}
       />
-      {/* Footer (Lang + User) */}
-      <div className="border-t p-3 flex flex-col gap-2"></div>
 
-      {/* ปุ่มย่อ/ขยายติดกับ sidebar */}
+      {/* ปุ่มย่อ/ขยาย */}
       <div
         className="absolute top-3 -right-3 bg-gray-200 hover:bg-gray-400 text-gray-700 
              rounded-full shadow-md cursor-pointer p-2 transition duration-200"

@@ -1,108 +1,219 @@
-import React from "react"
-import { Card } from "antd"
-import {
-  CalendarOutlined,
-  BarChartOutlined,
-  NotificationOutlined,
-  SettingOutlined,
-} from "@ant-design/icons"
+import React, { useEffect, useState } from "react";
+import { Card, Button, Spin } from "antd";
+import dayjs from "dayjs";
+import * as AntdIcons from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
-const Dashboard = () => {
-  return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          📊 Dashboard (Pending)
-        </h1>
-        <p className="text-gray-500">ภาพรวมและการเข้าถึงเมนูลัดของระบบ</p>
-      </div>
+type EventItem = {
+  _id?: string;
+  subject: string;
+  start: string;
+  end: string;
+  date: string;
+  year: string;
+  location?: string;
+};
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="rounded-xl shadow hover:shadow-lg transition">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <CalendarOutlined className="text-2xl text-blue-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">ตารางเรียนวันนี้</p>
-              <p className="text-xl font-bold">3 วิชา</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="rounded-xl shadow hover:shadow-lg transition">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-full">
-              <BarChartOutlined className="text-2xl text-green-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">คาบเรียนสัปดาห์นี้</p>
-              <p className="text-xl font-bold">12 คาบ</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="rounded-xl shadow hover:shadow-lg transition">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <NotificationOutlined className="text-2xl text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">ประกาศใหม่</p>
-              <p className="text-xl font-bold">5 เรื่อง</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+type SubjectItem = {
+  _id: string;
+  name: string;
+  color: string;
+  icon: string;
+};
 
-      {/* Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ข่าวสาร */}
-        <Card
-          title="📢 ข่าวสาร OOC"
-          className="rounded-xl shadow hover:shadow-lg transition"
-        >
-          <ul className="space-y-2">
-            <li className="border-b pb-2">[29/08/2025] เปิดรับสมัครสอบ</li>
-            <li className="border-b pb-2">[30/08/2025] ตารางสอบกลางภาคออกแล้ว</li>
-            <li>[31/08/2025] ประกาศหยุดเรียนพิเศษ</li>
-          </ul>
-        </Card>
-
-        {/* Mini Calendar */}
-        <Card
-          title="🗓 ปฏิทินย่อ"
-          className="rounded-xl shadow hover:shadow-lg transition"
-        >
-          <div className="flex justify-center items-center h-48 text-gray-400">
-            <CalendarOutlined className="text-5xl" />
-            <span className="ml-2">Mini Calendar Placeholder</span>
-          </div>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card
-          title="⚡ เมนูลัด"
-          className="rounded-xl shadow hover:shadow-lg transition"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <button className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-              ➕ เพิ่มวิชา
-            </button>
-            <button className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-              📅 ตารางเดือน
-            </button>
-            <button className="px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600">
-              📊 ตารางสัปดาห์
-            </button>
-            <button className="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-              ⚙️ ตั้งค่า
-            </button>
-          </div>
-        </Card>
-      </div>
-    </div>
-  )
+// ✅ util cookie
+function getCookie(name: string) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+}
+function setCookie(name: string, value: string, days: number) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
 }
 
-export default Dashboard
+const Dashboard: React.FC = () => {
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mainYear, setMainYear] = useState<string>("1"); // ✅ เก็บปีหลัก
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // โหลดปีหลักจาก cookie
+    const saved = getCookie("mainYear") || "1";
+    setMainYear(saved);
+
+    const fetchData = async () => {
+      try {
+        const yearParam = mainYear.startsWith("year")
+          ? mainYear
+          : `year${mainYear}`;
+
+        const [resEvents, resSubjects] = await Promise.all([
+          fetch(`/api/events?year=${yearParam}`),
+          fetch(`/api/subjects`),
+        ]);
+
+        setEvents(await resEvents.json());
+        setSubjects(await resSubjects.json());
+      } catch (err) {
+        console.error("โหลดข้อมูลไม่สำเร็จ:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [mainYear]); // ✅ reload เมื่อเปลี่ยนปีหลัก
+
+  const today = dayjs().format("YYYY-MM-DD");
+  const eventsToday = events.filter((e) => e.date === today);
+  const uniqueSubjectsToday = Array.from(
+    new Set(eventsToday.map((e) => e.subject))
+  );
+
+  const getSubjectInfo = (name: string) =>
+    subjects.find((s) => s.name === name);
+
+  // ✅ handle กดเปลี่ยนปีหลัก
+  const handleYearChange = (year: string) => {
+    setMainYear(year);
+    setCookie("mainYear", year, 30); // เก็บ cookie 30 วัน
+  };
+
+  // 📌 handle กดปุ่ม "ดูตารางเรียนทั้งหมด"
+  const handleViewAll = () => {
+    const yearParam = mainYear.startsWith("year")
+      ? mainYear
+      : `year${mainYear}`;
+    navigate(
+      `/${yearParam}/schedule?tab=week2&date=${dayjs().format("YYYY-MM-DD")}`
+    );
+  };
+
+  return (
+    <div className="p-6 bg-gray-50 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-gray-500">ภาพรวมตารางเรียนและกิจกรรมของคุณ</p>
+        </div>
+
+        {/* ✅ ปุ่มเลือกปีหลัก */}
+        <div className="flex gap-2">
+          {["1", "2", "3"].map((y) => (
+            <Button
+              key={y}
+              type={mainYear === y ? "primary" : "default"}
+              onClick={() => handleYearChange(y)}
+            >
+              ปี {y}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center">
+          <Spin />
+        </div>
+      ) : (
+        <>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="rounded-xl shadow">
+              <p className="text-gray-500">วิชาที่เรียนวันนี้</p>
+              <p className="text-2xl font-bold">
+                {uniqueSubjectsToday.length} วิชา
+              </p>
+              <span className="text-sm text-gray-400">
+                นับเฉพาะชื่อวิชา ไม่ซ้ำกัน
+              </span>
+            </Card>
+            <Card className="rounded-xl shadow">
+              <p className="text-gray-500">จำนวนคาบเรียนวันนี้ (รวมซ้ำ)</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {eventsToday.length} คาบ
+              </p>
+              <span className="text-sm text-gray-400">
+                รวมวิชาที่มีในวัน {dayjs().format("DD/MM/YYYY")}
+              </span>
+            </Card>
+          </div>
+
+          {/* ตารางเรียนวันนี้ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card
+              title="ตารางเรียนวันนี้"
+              className="rounded-xl shadow"
+              extra={
+                <span className="text-gray-400">
+                  {dayjs().format("dddd DD MMMM YYYY")}
+                </span>
+              }
+            >
+              <div className="space-y-3">
+                {eventsToday.length === 0 ? (
+                  <p className="text-gray-400 text-center">
+                    ไม่มีตารางเรียนวันนี้
+                  </p>
+                ) : (
+                  eventsToday.map((ev, i) => {
+                    const info = getSubjectInfo(ev.subject);
+                    const IconComp = info
+                      ? (AntdIcons as any)[info.icon]
+                      : null;
+                    return (
+                      <div
+                        key={ev._id || i}
+                        className="flex justify-between items-center p-2 border rounded"
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            {IconComp && (
+                              <IconComp style={{ color: info?.color }} />
+                            )}
+                            <p className="font-semibold">{ev.subject}</p>
+                          </div>
+
+                          {/* ✅ แสดงสถานที่ */}
+                          {ev.location && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              📍 {ev.location}
+                            </p>
+                          )}
+                        </div>
+
+                        <span
+                          className="px-3 py-1 rounded text-sm"
+                          style={{
+                            backgroundColor: info?.color
+                              ? info.color + "20"
+                              : "#f0f0f0",
+                            color: info?.color || "#555",
+                          }}
+                        >
+                          {ev.start}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="mt-4 text-center">
+                <Button type="default" onClick={handleViewAll}>
+                  ดูตารางเรียนทั้งหมด
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;

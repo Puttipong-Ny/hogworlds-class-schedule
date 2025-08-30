@@ -47,11 +47,19 @@ export default async function handler(
 
   if (req.method === "POST") {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { subject, start, end, date } = body;
+    const { subject, start, end, date, location } = body; 
 
-    const year = body.year || query.year; // ✅ ดึงจาก body ก่อน ถ้าไม่มีใช้ query
+    const year = body.year || query.year;
 
-    const result = await events.insertOne({ subject, start, end, date, year });
+    const result = await events.insertOne({
+      subject,
+      start,
+      end,
+      date,
+      year,
+      location, 
+    });
+
     return res.status(200).json(result);
   }
 
