@@ -413,9 +413,9 @@ const ScheduleMonth: React.FC = () => {
                           {...restField}
                           name={[name, "location"]}
                           label="สถานที่"
-                          rules={[
-                            { required: true, message: "กรุณาเลือกสถานที่" },
-                          ]}
+                          // rules={[
+                          //   { required: true, message: "กรุณาเลือกสถานที่" },
+                          // ]}
                         >
                           <Select
                             placeholder="เลือกสถานที่"
