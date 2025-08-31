@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/th";
 import { useSearchParams, useParams } from "react-router-dom";
-import { Tooltip, Spin } from "antd";
+import { Tooltip, Spin, Button, Modal, message } from "antd";
 import * as AntdIcons from "@ant-design/icons";
 import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
@@ -154,6 +154,75 @@ const ScheduleWeek: React.FC = () => {
   const nextWeek = () => setCurrent(current.add(1, "week"));
   const resetToday = () => setCurrent(dayjs());
 
+  const copyWeekNext = () => {
+    Modal.confirm({
+      title: "คัดลอกตารางสัปดาห์นี้",
+      content: `คุณต้องการคัดลอกสัปดาห์ (${weekStart.format(
+        "DD/MM/YYYY"
+      )} – ${weekEnd.format("DD/MM/YYYY")}) ไปยังสัปดาห์ถัดไป (${weekStart
+        .add(7, "day")
+        .format("DD/MM/YYYY")} – ${weekEnd
+        .add(7, "day")
+        .format("DD/MM/YYYY")}) ใช่หรือไม่?`,
+      okText: "คัดลอก",
+      cancelText: "ยกเลิก",
+      async onOk() {
+        try {
+          const res = await fetch(`/api/events`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              year,
+              weekStart: weekStart.format("YYYY-MM-DD"),
+              weekEnd: weekEnd.format("YYYY-MM-DD"),
+            }),
+          });
+          if (!res.ok) throw new Error("copy fail");
+          message.success("คัดลอกเรียบร้อย ✅");
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          message.error("คัดลอกไม่สำเร็จ ❌");
+        }
+      },
+    });
+  };
+
+  const deleteWeek = () => {
+    Modal.confirm({
+      title: "ลบตารางเรียนทั้งสัปดาห์",
+      content: `คุณแน่ใจหรือไม่ว่าต้องการลบตารางเรียนทั้งหมดของสัปดาห์ 
+      (${weekStart.format("DD/MM/YYYY")} – ${weekEnd.format("DD/MM/YYYY")}) ?`,
+      okText: "ลบทั้งหมด",
+      cancelText: "ยกเลิก",
+      okButtonProps: { danger: true },
+      async onOk() {
+        try {
+          const res = await fetch("/api/events", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              year,
+              weekStart: weekStart.format("YYYY-MM-DD"),
+              weekEnd: weekEnd.format("YYYY-MM-DD"),
+            }),
+          });
+
+          if (!res.ok) throw new Error("Delete week failed");
+          const data = await res.json();
+
+          message.success(
+            `ลบสัปดาห์นี้เรียบร้อย ✅ (ลบ ${data.deleted} รายการ)`
+          );
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          message.error("ลบไม่สำเร็จ ❌");
+        }
+      },
+    });
+  };
+
   return (
     <Spin spinning={loading}>
       <div
@@ -161,26 +230,36 @@ const ScheduleWeek: React.FC = () => {
         style={{ width: "auto" }}
       >
         {/* Header */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <button
               onClick={prevWeek}
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              className="px-3 py-1 bg-gray-200 rounded"
             >
               ◀ สัปดาห์ก่อน
             </button>
             <button
               onClick={nextWeek}
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              className="px-3 py-1 bg-gray-200 rounded"
             >
               สัปดาห์ถัดไป ▶
             </button>
             <button
               onClick={resetToday}
-              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="px-3 py-1 bg-blue-500 text-white rounded"
             >
               วันนี้
             </button>
+            {/* ปุ่มคัดลอก */}
+            <Button type="primary" onClick={copyWeekNext}>
+              📌 คัดลอกไปสัปดาห์ถัดไป
+            </Button>
+
+            {/* ปุ่มลบสัปดาห์ */}
+            <Button danger onClick={deleteWeek}>
+              🗑️ ลบสัปดาห์นี้
+            </Button>
           </div>
           <h2 className="text-2xl font-bold text-gray-800">
             👥 ปฏิทินรายสัปดาห์ ({weekStart.format("DD/MM/YYYY")} –{" "}
@@ -255,7 +334,9 @@ const ScheduleWeek: React.FC = () => {
                     return (
                       <Tooltip
                         key={ev._id}
-                        title={`${subject?.name || ev.subject} (${ev.start})${ev.professor ? ` - Prof.${ev.professor}` : ""}`}
+                        title={`${subject?.name || ev.subject} (${ev.start})${
+                          ev.professor ? ` - Prof.${ev.professor}` : ""
+                        }`}
                       >
                         <div
                           className="absolute h-7 flex items-center gap-2 px-3 text-xs font-semibold text-white rounded-lg shadow-md"

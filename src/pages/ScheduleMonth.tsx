@@ -8,7 +8,6 @@ import {
   Dropdown,
   message,
   Spin,
-  Space,
 } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
@@ -45,6 +44,7 @@ type LocationItem = {
 const menuItems = [
   { key: "gotoWeek", label: "เลือก" },
   { key: "add", label: "เพิ่ม" },
+  { key: "edit", label: "แก้ไข" },
   { key: "delete", label: "ลบ" },
 ];
 
@@ -68,13 +68,9 @@ function getIcon(iconName: string, color: string) {
   return <IconComponent style={{ color, fontSize: 14 }} />;
 }
 
-const LONG_PRESS_MS = 500;
-
 const ScheduleMonth: React.FC = () => {
   const navigate = useNavigate();
-
   const { year } = useParams<{ year: string }>();
-
   const [value, setValue] = useState<Dayjs>(dayjs());
   const [events, setEvents] = useState<Record<string, EventItem[]>>({});
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -84,7 +80,9 @@ const ScheduleMonth: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteList, setDeleteList] = useState<EventItem[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
-  const [loading, setLoading] = useState(false); // ✅ loading state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -93,7 +91,7 @@ const ScheduleMonth: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      setLoading(true); // ✅ ก่อนโหลด
+      setLoading(true);
       const [evRes, subRes] = await Promise.all([
         fetch(`/api/events?year=${year}`),
         fetch(`/api/subjects?year=${year}`),
@@ -112,7 +110,7 @@ const ScheduleMonth: React.FC = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false); // ✅ เสร็จแล้ว
+      setLoading(false);
     }
   };
 
@@ -140,7 +138,7 @@ const ScheduleMonth: React.FC = () => {
               handleAction(key, date);
             },
           }}
-          trigger={["click", "contextMenu"]} // 👈 ซ้าย/ขวาเหมือนกัน
+          trigger={["click", "contextMenu"]}
         >
           <div className="h-full w-full p-1 cursor-pointer">
             <ul className="space-y-1">
@@ -160,7 +158,8 @@ const ScheduleMonth: React.FC = () => {
                     >
                       {getIcon(iconName, "white")}
                       <span className="truncate">
-                        {name} ({item.start}) - Prof.{item.professor}
+                        {name} ({item.start})
+                        {item.professor ? ` - Prof.${item.professor}` : ""}
                       </span>
                     </div>
                   </li>
@@ -174,13 +173,6 @@ const ScheduleMonth: React.FC = () => {
     return null;
   };
 
-  // const handleSelect = (date: Dayjs, info: { source: string }) => {
-  //   if (info.source === "date" && !isAddOpen) {
-  //     navigate(`/${year}/schedule-week?date=${date.format("YYYY-MM-DD")}`);
-  //   }
-  // };
-
-  // ✅ กดบันทึก (เพิ่ม)
   const handleOk = async () => {
     try {
       if (!selectedDate) {
@@ -228,7 +220,6 @@ const ScheduleMonth: React.FC = () => {
     }
   };
 
-  // ✅ ลบพร้อม confirm
   const handleDelete = (item: EventItem) => {
     Modal.confirm({
       title: "ยืนยันการลบ",
@@ -245,7 +236,6 @@ const ScheduleMonth: React.FC = () => {
             body: JSON.stringify({ id: item._id }),
           });
           await fetchData();
-
           setDeleteList(events[selectedDate?.format("YYYY-MM-DD") || ""] || []);
           setIsDeleteOpen(false);
           setSelectedDate(null);
@@ -271,6 +261,85 @@ const ScheduleMonth: React.FC = () => {
       setIsDeleteOpen(true);
     }
 
+    if (action === "edit") {
+      const key = date.format("YYYY-MM-DD");
+      const list = events[key] || [];
+
+      if (list.length === 0) {
+        message.info("ไม่มีตารางเรียนวันนี้");
+        return;
+      }
+
+      if (list.length === 1) {
+        // มีแค่วิชาเดียว → เปิดแก้ไขได้เลย
+        openEditModal(list[0]);
+      } else {
+        // มีหลายวิชา → ให้ user เลือกก่อน
+        Modal.info({
+          title: "เลือกวิชาที่ต้องการแก้ไข",
+          content: (
+            <div className="space-y-2">
+              {list.map((ev) => {
+                const subject = subjects.find((s) => s.name === ev.subject);
+                const color = parseColor(subject?.color);
+                const iconName = subject?.icon || "BookOutlined";
+                const name = subject?.name || ev.subject;
+
+                return (
+                  <div
+                    key={ev._id}
+                    className="flex items-center justify-between px-3 py-2 rounded shadow-sm"
+                    style={{
+                      background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+                      color: "white",
+                    }}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      {getIcon(iconName, "white")}
+                      <span className="truncate">
+                        {name} ({ev.start} - {ev.end})
+                        {ev.professor ? ` - Prof.${ev.professor}` : ""}
+                      </span>
+                    </div>
+                    <button
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                      onClick={() => {
+                        Modal.destroyAll();
+                        openEditModal(ev); // 👈 ใช้ฟังก์ชันเดิม
+                      }}
+                    >
+                      แก้ไข
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ),
+          okButtonProps: { style: { display: "none" } }, // ซ่อนปุ่ม OK
+        });
+      }
+    }
+
+    function openEditModal(ev: EventItem) {
+      setEditingEvent(ev);
+      form.setFieldsValue({
+        subjects: [
+          {
+            subject: ev.subject,
+            professor: ev.professor,
+            location: ev.location,
+            times: [
+              {
+                start: dayjs(ev.start, "HH:mm"),
+                end: dayjs(ev.end, "HH:mm"),
+              },
+            ],
+          },
+        ],
+      });
+      setIsEditOpen(true);
+    }
+
     if (action === "gotoWeek") {
       navigate(`/${year}/schedule?tab=week&date=${date.format("YYYY-MM-DD")}`);
     }
@@ -279,9 +348,7 @@ const ScheduleMonth: React.FC = () => {
   const disabledConfig = {
     disabledHours: () => {
       const hours: number[] = [];
-      // ปิด 2–17
       for (let h = 2; h < 18; h++) hours.push(h);
-      // ปิดชั่วโมง 18 ที่เกินครึ่ง
       return hours;
     },
     disabledMinutes: (selectedHour?: number) => {
@@ -302,7 +369,6 @@ const ScheduleMonth: React.FC = () => {
         </h2>
         <Calendar
           value={value}
-          // onSelect={handleSelect}
           onPanelChange={(newValue) => setValue(newValue)}
           cellRender={cellRender}
           locale={locale}
@@ -325,218 +391,241 @@ const ScheduleMonth: React.FC = () => {
             <Form.List name="subjects">
               {(subjectFields, { add: addSubject, remove: removeSubject }) => (
                 <>
-                  {subjectFields.map(({ key, name, ...restField }) => {
-                    // หา subject ที่เลือก
-                    const selectedSubjectName = form.getFieldValue([
-                      "subjects",
-                      name,
-                      "subject",
-                    ]);
-                    const selectedSubject = subjects.find(
-                      (s) => s.name === selectedSubjectName
-                    );
-
-                    return (
-                      <div
-                        key={key}
-                        className="border p-3 rounded mb-4 bg-gray-50"
+                  {subjectFields.map(({ key, name, ...restField }) => (
+                    <div
+                      key={key}
+                      className="border p-3 rounded mb-4 bg-gray-50"
+                    >
+                      {/* เลือกวิชา */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "subject"]}
+                        label="วิชา"
+                        rules={[{ required: true, message: "กรุณาเลือกวิชา" }]}
                       >
-                        {/* เลือกวิชา */}
-                        <Form.Item
-                          {...restField}
-                          name={[name, "subject"]}
-                          label="วิชา"
-                          rules={[
-                            { required: true, message: "กรุณาเลือกวิชา" },
-                          ]}
+                        <Select
+                          placeholder="เลือกวิชา"
+                          showSearch
+                          optionFilterProp="label"
+                          filterOption={(input, option) =>
+                            (option?.label as string)
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
                         >
-                          <Select placeholder="เลือกวิชา">
-                            {subjects.map((s) => (
-                              <Select.Option key={s._id} value={s.name}>
-                                {getIcon(s.icon, s.color)} {s.name}
-                              </Select.Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
+                          {subjects.map((s) => (
+                            <Select.Option
+                              key={s._id}
+                              value={s.name}
+                              label={s.name}
+                            >
+                              {getIcon(s.icon, s.color)} {s.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-                        {/* ✅ เลือกศาสตราจารย์ */}
-                        {
-                          <Form.Item
-                            noStyle
-                            shouldUpdate={(prev, cur) =>
-                              prev.subjects?.[name]?.subject !==
-                              cur.subjects?.[name]?.subject
-                            }
-                          >
-                            {() => {
-                              const selectedSubjectName = form.getFieldValue([
-                                "subjects",
-                                name,
-                                "subject",
-                              ]);
-                              const selectedSubject = subjects.find(
-                                (s) => s.name === selectedSubjectName
-                              );
-
-                              return (
-                                <Form.Item
-                                  {...restField}
-                                  name={[name, "professor"]}
-                                  label="ศาสตราจารย์"
-                                  // rules={[
-                                  //   {
-                                  //     required: true,
-                                  //     message: "กรุณาเลือกศาสตราจารย์",
-                                  //   },
-                                  // ]}
-                                >
-                                  <Select
-                                    placeholder="เลือกศาสตราจารย์"
-                                    disabled={!selectedSubject}
-                                  >
-                                    {selectedSubject?.professors?.map(
-                                      (prof: string) => (
-                                        <Select.Option key={prof} value={prof}>
-                                          Prof.{prof}
-                                        </Select.Option>
-                                      )
-                                    )}
-                                  </Select>
-                                </Form.Item>
-                              );
-                            }}
-                          </Form.Item>
+                      {/* เลือกศาสตราจารย์ */}
+                      <Form.Item
+                        noStyle
+                        shouldUpdate={(prev, cur) =>
+                          prev.subjects?.[name]?.subject !==
+                          cur.subjects?.[name]?.subject
                         }
+                      >
+                        {() => {
+                          const selectedSubjectName = form.getFieldValue([
+                            "subjects",
+                            name,
+                            "subject",
+                          ]);
+                          const selectedSubject = subjects.find(
+                            (s) => s.name === selectedSubjectName
+                          );
 
-                        {/* เลือกสถานที่ */}
-                        <Form.Item
-                          {...restField}
-                          name={[name, "location"]}
-                          label="สถานที่"
-                          // rules={[
-                          //   { required: true, message: "กรุณาเลือกสถานที่" },
-                          // ]}
-                        >
-                          <Select
-                            placeholder="เลือกสถานที่"
-                            allowClear
-                            showSearch
-                          >
-                            {locations.map((loc) => (
-                              <Select.Option key={loc._id} value={loc.name}>
-                                {loc.name}
-                              </Select.Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-
-                        {/* เวลา */}
-                        <Form.Item
-                          label="เวลา"
-                          required
-                          rules={[
-                            {
-                              validator: async (_, value) => {
-                                if (
-                                  !value ||
-                                  value.length === 0 ||
-                                  !value[0]?.start
-                                ) {
-                                  return Promise.reject(
-                                    new Error("กรุณาเลือกเวลา")
-                                  );
+                          return (
+                            <Form.Item
+                              {...restField}
+                              name={[name, "professor"]}
+                              label="ศาสตราจารย์ (ไม่ต้องก็ได้)"
+                            >
+                              <Select
+                                placeholder={
+                                  selectedSubject
+                                    ? "เลือกศาสตราจารย์"
+                                    : "กรุณาเลือกวิชาก่อน"
                                 }
-                                return Promise.resolve();
-                              },
-                            },
-                          ]}
-                        >
-                          <Form.List name={[name, "times"]} initialValue={[{}]}>
-                            {(
-                              timeFields,
-                              { add: addTime, remove: removeTime }
-                            ) => (
-                              <>
-                                {timeFields.map(
-                                  ({
-                                    key: timeKey,
-                                    name: timeName,
-                                    ...timeRest
-                                  }) => (
-                                    <div
-                                      key={timeKey}
-                                      className="flex items-center gap-2 mb-2"
+                                disabled={!selectedSubject}
+                                showSearch
+                                optionFilterProp="label"
+                                filterOption={(input, option) =>
+                                  (option?.label as string)
+                                    .toLowerCase()
+                                    .includes(input.toLowerCase())
+                                }
+                              >
+                                {selectedSubject?.professors?.map(
+                                  (prof: string) => (
+                                    <Select.Option
+                                      key={prof}
+                                      value={prof}
+                                      label={prof}
                                     >
-                                      <Form.Item
-                                        {...timeRest}
-                                        name={[timeName, "start"]}
-                                        rules={[
-                                          {
-                                            required: true,
-                                            message: "กรุณาเลือกเวลา",
-                                          },
-                                        ]}
-                                        className="!mb-0 flex-1"
-                                        label={false} // 👈 ซ่อน label ของแต่ละแถว
-                                      >
-                                        <TimePicker
-                                          minuteStep={5}
-                                          format="HH:mm"
-                                          {...disabledConfig}
-                                          onChange={(val) => {
-                                            if (val) {
-                                              const end = val.add(30, "minute");
-                                              form.setFieldValue(
-                                                [
-                                                  "subjects",
-                                                  name,
-                                                  "times",
-                                                  timeName,
-                                                ],
-                                                { start: val, end }
-                                              );
-                                            }
-                                          }}
-                                        />
-                                      </Form.Item>
-
-                                      <button
-                                        type="button"
-                                        className="px-2 py-1 bg-red-500 text-white rounded"
-                                        onClick={() => removeTime(timeName)}
-                                      >
-                                        ลบ
-                                      </button>
-                                    </div>
+                                      Prof. {prof}
+                                    </Select.Option>
                                   )
                                 )}
+                              </Select>
+                            </Form.Item>
+                          );
+                        }}
+                      </Form.Item>
 
-                                <Form.Item label={false}>
-                                  <button
-                                    type="button"
-                                    onClick={() => addTime()}
-                                    className="px-3 py-1 bg-blue-500 text-white rounded"
-                                  >
-                                    + เพิ่มช่วงเวลา
-                                  </button>
-                                </Form.Item>
-                              </>
-                            )}
-                          </Form.List>
-                        </Form.Item>
-
-                        {/* ปุ่มลบวิชา */}
-                        <button
-                          type="button"
-                          className="px-3 py-1 bg-red-600 text-white rounded mt-2"
-                          onClick={() => removeSubject(name)}
+                      {/* เลือกสถานที่ */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "location"]}
+                        label="สถานที่ (ไม่ต้องก็ได้)"
+                      >
+                        <Select
+                          placeholder="เลือกสถานที่"
+                          allowClear
+                          showSearch
+                          optionFilterProp="children"
+                          filterOption={(input, option) =>
+                            (option?.children as unknown as string)
+                              ?.toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
                         >
-                          ลบวิชา
-                        </button>
-                      </div>
-                    );
-                  })}
+                          {locations.map((loc) => (
+                            <Select.Option key={loc._id} value={loc.name}>
+                              {loc.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
+                      {/* เวลา */}
+                      <Form.Item
+                        label="เวลา"
+                        required
+                        rules={[
+                          {
+                            validator: async (_, value) => {
+                              if (
+                                !value ||
+                                value.length === 0 ||
+                                !value[0]?.start
+                              ) {
+                                return Promise.reject(
+                                  new Error("กรุณาเลือกเวลา")
+                                );
+                              }
+                              return Promise.resolve();
+                            },
+                          },
+                        ]}
+                      >
+                        <Form.List name={[name, "times"]} initialValue={[{}]}>
+                          {(
+                            timeFields,
+                            { add: addTime, remove: removeTime }
+                          ) => (
+                            <>
+                              {timeFields.map(
+                                ({
+                                  key: timeKey,
+                                  name: timeName,
+                                  ...timeRest
+                                }) => (
+                                  <div
+                                    key={timeKey}
+                                    className="flex items-center gap-2 mb-2"
+                                  >
+                                    <Form.Item
+                                      {...timeRest}
+                                      name={[timeName, "start"]}
+                                      rules={[
+                                        {
+                                          required: true,
+                                          message: "กรุณาเลือกเวลา",
+                                        },
+                                      ]}
+                                      className="!mb-0 flex-1"
+                                      label={false}
+                                    >
+                                      <TimePicker
+                                        minuteStep={5}
+                                        format="HH:mm"
+                                        {...disabledConfig}
+                                        needConfirm={false}
+                                        showNow={false}
+                                        hideDisabledOptions
+                                        disabledHours={() => {
+                                          const allowed = [
+                                            18, 19, 20, 21, 22, 23, 0, 1,
+                                          ];
+                                          const all = Array.from(
+                                            { length: 24 },
+                                            (_, i) => i
+                                          );
+                                          return all.filter(
+                                            (h) => !allowed.includes(h)
+                                          );
+                                        }}
+                                        onChange={(val) => {
+                                          if (val) {
+                                            const end = val.add(1, "hour");
+                                            form.setFieldValue(
+                                              [
+                                                "subjects",
+                                                name,
+                                                "times",
+                                                timeName,
+                                              ],
+                                              { start: val, end }
+                                            );
+                                          }
+                                        }}
+                                      />
+                                    </Form.Item>
+
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 bg-red-500 text-white rounded"
+                                      onClick={() => removeTime(timeName)}
+                                    >
+                                      ลบ
+                                    </button>
+                                  </div>
+                                )
+                              )}
+
+                              <Form.Item label={false}>
+                                <button
+                                  type="button"
+                                  onClick={() => addTime()}
+                                  className="px-3 py-1 bg-blue-500 text-white rounded"
+                                >
+                                  + เพิ่มช่วงเวลา
+                                </button>
+                              </Form.Item>
+                            </>
+                          )}
+                        </Form.List>
+                      </Form.Item>
+
+                      {/* ปุ่มลบวิชา */}
+                      <button
+                        type="button"
+                        className="px-3 py-1 bg-red-600 text-white rounded mt-2"
+                        onClick={() => removeSubject(name)}
+                      >
+                        ลบวิชา
+                      </button>
+                    </div>
+                  ))}
                   <Form.Item>
                     <button
                       type="button"
@@ -582,6 +671,7 @@ const ScheduleMonth: React.FC = () => {
                       {getIcon(iconName, "white")}
                       <span className="truncate">
                         {name} ({item.start}){" "}
+                        {item.professor ? ` - Prof.${item.professor}` : ""}
                         {item.location ? `📍${item.location}` : ""}
                       </span>
                     </div>
@@ -640,6 +730,286 @@ const ScheduleMonth: React.FC = () => {
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Modal แก้ไข */}
+        <Modal
+          title={`แก้ไขตารางเรียน (${selectedDate?.format("DD/MM/YYYY")})`}
+          open={isEditOpen}
+          onOk={async () => {
+            try {
+              const values = await form.validateFields();
+              if (!editingEvent) return;
+
+              const updateEvent = {
+                ...editingEvent,
+                subject: values.subjects[0].subject,
+                professor: values.subjects[0].professor,
+                location: values.subjects[0].location,
+                start: values.subjects[0].times[0].start.format("HH:mm"),
+                end: values.subjects[0].times[0].end.format("HH:mm"),
+              };
+
+              await fetch("/api/events", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updateEvent),
+              });
+
+              message.success("แก้ไขตารางเรียนเรียบร้อย ✅");
+              setIsEditOpen(false);
+              setEditingEvent(null);
+              await fetchData();
+            } catch (err) {
+              console.error(err);
+              message.error("แก้ไขไม่สำเร็จ ❌");
+            }
+          }}
+          onCancel={() => setIsEditOpen(false)}
+          okText="บันทึก"
+          cancelText="ยกเลิก"
+          confirmLoading={loading}
+          width={600}
+        >
+          <Form form={form} layout="vertical">
+            <Form.List name="subjects">
+              {(subjectFields, { add: addSubject, remove: removeSubject }) => (
+                <>
+                  {subjectFields.map(({ key, name, ...restField }) => (
+                    <div
+                      key={key}
+                      className="border p-3 rounded mb-4 bg-gray-50"
+                    >
+                      {/* เลือกวิชา */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "subject"]}
+                        label="วิชา"
+                        rules={[{ required: true, message: "กรุณาเลือกวิชา" }]}
+                      >
+                        <Select
+                          placeholder="เลือกวิชา"
+                          showSearch
+                          optionFilterProp="label"
+                          filterOption={(input, option) =>
+                            (option?.label as string)
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
+                        >
+                          {subjects.map((s) => (
+                            <Select.Option
+                              key={s._id}
+                              value={s.name}
+                              label={s.name}
+                            >
+                              {getIcon(s.icon, s.color)} {s.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+
+                      {/* เลือกศาสตราจารย์ */}
+                      <Form.Item
+                        noStyle
+                        shouldUpdate={(prev, cur) =>
+                          prev.subjects?.[name]?.subject !==
+                          cur.subjects?.[name]?.subject
+                        }
+                      >
+                        {() => {
+                          const selectedSubjectName = form.getFieldValue([
+                            "subjects",
+                            name,
+                            "subject",
+                          ]);
+                          const selectedSubject = subjects.find(
+                            (s) => s.name === selectedSubjectName
+                          );
+
+                          return (
+                            <Form.Item
+                              {...restField}
+                              name={[name, "professor"]}
+                              label="ศาสตราจารย์ (ไม่ต้องก็ได้)"
+                            >
+                              <Select
+                                placeholder={
+                                  selectedSubject
+                                    ? "เลือกศาสตราจารย์"
+                                    : "กรุณาเลือกวิชาก่อน"
+                                }
+                                disabled={!selectedSubject}
+                                showSearch
+                                optionFilterProp="label"
+                                filterOption={(input, option) =>
+                                  (option?.label as string)
+                                    .toLowerCase()
+                                    .includes(input.toLowerCase())
+                                }
+                              >
+                                {selectedSubject?.professors?.map(
+                                  (prof: string) => (
+                                    <Select.Option
+                                      key={prof}
+                                      value={prof}
+                                      label={prof}
+                                    >
+                                      Prof. {prof}
+                                    </Select.Option>
+                                  )
+                                )}
+                              </Select>
+                            </Form.Item>
+                          );
+                        }}
+                      </Form.Item>
+
+                      {/* เลือกสถานที่ */}
+                      <Form.Item
+                        {...restField}
+                        name={[name, "location"]}
+                        label="สถานที่ (ไม่ต้องก็ได้)"
+                      >
+                        <Select
+                          placeholder="เลือกสถานที่"
+                          allowClear
+                          showSearch
+                          optionFilterProp="children"
+                          filterOption={(input, option) =>
+                            (option?.children as unknown as string)
+                              ?.toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
+                        >
+                          {locations.map((loc) => (
+                            <Select.Option key={loc._id} value={loc.name}>
+                              {loc.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+
+                      {/* เวลา */}
+                      <Form.Item
+                        label="เวลา"
+                        required
+                        rules={[
+                          {
+                            validator: async (_, value) => {
+                              if (
+                                !value ||
+                                value.length === 0 ||
+                                !value[0]?.start
+                              ) {
+                                return Promise.reject(
+                                  new Error("กรุณาเลือกเวลา")
+                                );
+                              }
+                              return Promise.resolve();
+                            },
+                          },
+                        ]}
+                      >
+                        <Form.List name={[name, "times"]} initialValue={[{}]}>
+                          {(
+                            timeFields,
+                            { add: addTime, remove: removeTime }
+                          ) => (
+                            <>
+                              {timeFields.map(
+                                ({
+                                  key: timeKey,
+                                  name: timeName,
+                                  ...timeRest
+                                }) => (
+                                  <div
+                                    key={timeKey}
+                                    className="flex items-center gap-2 mb-2"
+                                  >
+                                    <Form.Item
+                                      {...timeRest}
+                                      name={[timeName, "start"]}
+                                      rules={[
+                                        {
+                                          required: true,
+                                          message: "กรุณาเลือกเวลา",
+                                        },
+                                      ]}
+                                      className="!mb-0 flex-1"
+                                      label={false}
+                                    >
+                                      <TimePicker
+                                        minuteStep={5}
+                                        format="HH:mm"
+                                        {...disabledConfig}
+                                        needConfirm={false}
+                                        showNow={false}
+                                        onChange={(val) => {
+                                          if (val) {
+                                            const end = val.add(30, "minute");
+                                            form.setFieldValue(
+                                              [
+                                                "subjects",
+                                                name,
+                                                "times",
+                                                timeName,
+                                              ],
+                                              { start: val, end }
+                                            );
+                                          }
+                                        }}
+                                      />
+                                    </Form.Item>
+
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 bg-red-500 text-white rounded"
+                                      onClick={() => removeTime(timeName)}
+                                    >
+                                      ลบ
+                                    </button>
+                                  </div>
+                                )
+                              )}
+
+                              <Form.Item label={false}>
+                                <button
+                                  type="button"
+                                  onClick={() => addTime()}
+                                  className="px-3 py-1 bg-blue-500 text-white rounded"
+                                >
+                                  + เพิ่มช่วงเวลา
+                                </button>
+                              </Form.Item>
+                            </>
+                          )}
+                        </Form.List>
+                      </Form.Item>
+
+                      {/* ปุ่มลบวิชา */}
+                      <button
+                        type="button"
+                        className="px-3 py-1 bg-red-600 text-white rounded mt-2"
+                        onClick={() => removeSubject(name)}
+                      >
+                        ลบวิชา
+                      </button>
+                    </div>
+                  ))}
+                  <Form.Item>
+                    <button
+                      type="button"
+                      onClick={() => addSubject()}
+                      className="px-4 py-2 bg-green-600 text-white rounded"
+                    >
+                      + เพิ่มวิชา
+                    </button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form>
         </Modal>
       </div>
     </Spin>

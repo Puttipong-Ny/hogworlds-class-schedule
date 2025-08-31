@@ -4,7 +4,7 @@ import "dayjs/locale/th";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useSearchParams, useParams } from "react-router-dom";
-import { Tooltip, Spin } from "antd";
+import { Tooltip, Spin, message, Modal, Button } from "antd";
 import * as AntdIcons from "@ant-design/icons";
 import isoWeek from "dayjs/plugin/isoWeek";
 
@@ -52,25 +52,26 @@ const ScheduleWeek2: React.FC = () => {
   );
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [evRes, subRes] = await Promise.all([
-          fetch(`/api/events?year=${year}`), // ✅ filter ตามปี
-          fetch(`/api/subjects?year=${year}`),
-        ]);
-        const evData = await evRes.json();
-        const subData = await subRes.json();
-        setEvents(evData);
-        setSubjects(subData);
-      } catch (err) {
-        console.error("โหลดข้อมูลล้มเหลว:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     if (year) fetchData();
   }, [year]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [evRes, subRes] = await Promise.all([
+        fetch(`/api/events?year=${year}`), // ✅ filter ตามปี
+        fetch(`/api/subjects?year=${year}`),
+      ]);
+      const evData = await evRes.json();
+      const subData = await subRes.json();
+      setEvents(evData);
+      setSubjects(subData);
+    } catch (err) {
+      console.error("โหลดข้อมูลล้มเหลว:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // สัปดาห์: จันทร์-อาทิตย์
   const weekStart = current.startOf("isoWeek"); // ✅ เริ่มวันจันทร์
@@ -110,6 +111,77 @@ const ScheduleWeek2: React.FC = () => {
     );
   };
 
+  const copyWeekNext = () => {
+    Modal.confirm({
+      title: "คัดลอกตารางสัปดาห์นี้",
+      content: `คุณต้องการคัดลอกสัปดาห์ (${weekStart.format(
+        "DD/MM/YYYY"
+      )} – ${weekEnd.format("DD/MM/YYYY")}) ไปยังสัปดาห์ถัดไป (${weekStart
+        .add(7, "day")
+        .format("DD/MM/YYYY")} – ${weekEnd
+        .add(7, "day")
+        .format("DD/MM/YYYY")}) ใช่หรือไม่?`,
+      okText: "คัดลอก",
+      cancelText: "ยกเลิก",
+      async onOk() {
+        try {
+          const res = await fetch(`/api/events`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              year,
+              weekStart: weekStart.format("YYYY-MM-DD"),
+              weekEnd: weekEnd.format("YYYY-MM-DD"),
+            }),
+          });
+          if (!res.ok) throw new Error("copy fail");
+          message.success("คัดลอกเรียบร้อย ✅");
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          message.error("คัดลอกไม่สำเร็จ ❌");
+        }
+      },
+    });
+  };
+
+  const deleteWeek = () => {
+    Modal.confirm({
+      title: "ลบตารางเรียนทั้งสัปดาห์",
+      content: `คุณแน่ใจหรือไม่ว่าต้องการลบตารางเรียนทั้งหมดของสัปดาห์ 
+        (${weekStart.format("DD/MM/YYYY")} – ${weekEnd.format(
+        "DD/MM/YYYY"
+      )}) ?`,
+      okText: "ลบทั้งหมด",
+      cancelText: "ยกเลิก",
+      okButtonProps: { danger: true },
+      async onOk() {
+        try {
+          const res = await fetch("/api/events", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              year,
+              weekStart: weekStart.format("YYYY-MM-DD"),
+              weekEnd: weekEnd.format("YYYY-MM-DD"),
+            }),
+          });
+
+          if (!res.ok) throw new Error("Delete week failed");
+          const data = await res.json();
+
+          message.success(
+            `ลบสัปดาห์นี้เรียบร้อย ✅ (ลบ ${data.deleted} รายการ)`
+          );
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          message.error("ลบไม่สำเร็จ ❌");
+        }
+      },
+    });
+  };
+
   // ปุ่มเลื่อนสัปดาห์
   const prevWeek = () => setCurrent((prev) => prev.subtract(1, "week"));
   const nextWeek = () => setCurrent((prev) => prev.add(1, "week"));
@@ -142,6 +214,15 @@ const ScheduleWeek2: React.FC = () => {
             >
               วันนี้
             </button>
+            {/* ปุ่มคัดลอก */}
+            <Button type="primary" onClick={copyWeekNext}>
+              📌 คัดลอกไปสัปดาห์ถัดไป
+            </Button>
+
+            {/* ปุ่มลบสัปดาห์ */}
+            <Button danger onClick={deleteWeek}>
+              🗑️ ลบสัปดาห์นี้
+            </Button>
           </div>
           <h2 className="text-2xl font-bold text-gray-800">
             👥 ปฏิทินรายสัปดาห์ ({weekStart.format("DD/MM/YYYY")} –{" "}
@@ -228,9 +309,7 @@ const ScheduleWeek2: React.FC = () => {
                               >
                                 <div className="flex items-center gap-1 text-sm font-bold">
                                   {renderDbIcon(sub.icon, 16, "#fff")}
-                                  <span>
-                                    {ev.start}
-                                  </span>
+                                  <span>{ev.start}</span>
                                 </div>
                                 {ev.professor && (
                                   <span className="text-xs font-medium text-gray-100">
