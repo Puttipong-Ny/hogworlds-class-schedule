@@ -623,8 +623,13 @@ const Setting: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="floor" label="ชั้น" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: "100%" }} />
+            <InputNumber
+              style={{ width: "100%" }}
+              min={-5} 
+              max={5} 
+            />
           </Form.Item>
+
           <Form.Item
             name="type"
             label="ประเภทห้อง"
