@@ -5,12 +5,13 @@ import ScheduleMonth from "./pages/ScheduleMonth";
 import ScheduleWeek from "./pages/ScheduleWeek";
 import ScheduleWeek2 from "./pages/ScheduleWeek2";
 import SettingSubject from "./pages/SettingSubject";
-import React from "react";
+import { Suspense } from "react";
 import MapOverview from "./pages/Map";
 import SettingYear from "./pages/SettingYear";
 import SettingLocation from "./pages/SettingLocation";
 import Setting from "./pages/Setting";
 import SchedulePage from "./pages/SchedulePage";
+import LoadingPage from "./components/Layout/LoadingPage";
 
 function App() {
   const years = ["year1", "year2", "year3"];

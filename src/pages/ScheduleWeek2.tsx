@@ -19,6 +19,7 @@ type EventItem = {
   end: string;
   date: string;
   year?: string;
+  professor?: string;
 };
 
 type SubjectItem = {
@@ -207,7 +208,7 @@ const ScheduleWeek2: React.FC = () => {
                       title={
                         hasEvent
                           ? `${sub.name}: ${cellEvents
-                              .map((ev) => `${ev.start}-${ev.end}`)
+                              .map((ev) => `${ev.start}`)
                               .join(", ")}`
                           : "ไม่มีตารางเรียน"
                       }
@@ -219,13 +220,23 @@ const ScheduleWeek2: React.FC = () => {
                             {cellEvents.map((ev) => (
                               <div
                                 key={ev._id || `${ev.start}-${ev.end}`}
-                                className="px-2 py-1 rounded text-xs font-semibold text-white shadow-sm flex items-center justify-center gap-1"
+                                className="px-2 py-1 rounded shadow-sm flex flex-col items-center gap-0.5"
                                 style={{
                                   background: `linear-gradient(90deg, ${sub.color}, ${sub.color}cc)`,
+                                  color: "white",
                                 }}
                               >
-                                {renderDbIcon(sub.icon, 14, "#fff")}
-                                <span className="text-center">{ev.start}</span>
+                                <div className="flex items-center gap-1 text-sm font-bold">
+                                  {renderDbIcon(sub.icon, 16, "#fff")}
+                                  <span>
+                                    {ev.start}
+                                  </span>
+                                </div>
+                                {ev.professor && (
+                                  <span className="text-xs font-medium text-gray-100">
+                                    Prof.{ev.professor}
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>

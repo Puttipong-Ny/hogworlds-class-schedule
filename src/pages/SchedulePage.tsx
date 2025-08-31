@@ -29,7 +29,8 @@ const SchedulePage: React.FC = () => {
       style={{ width: "1600px" }}
     >
       <Tabs
-        defaultActiveKey="month"
+        activeKey={activeTab}
+        onChange={handleTabChange}
         items={[
           {
             key: "month",

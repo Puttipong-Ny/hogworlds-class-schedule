@@ -27,9 +27,9 @@ export default async function handler(
 
   if (req.method === "POST") {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { name, color, icon } = body;
+    const { name, color, icon, professors } = body;
 
-    if (!name || !color || !icon) {
+    if (!name || !color || !icon || !professors) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -41,6 +41,7 @@ export default async function handler(
       name,
       color,
       icon,
+      professors: Array.isArray(professors) ? professors : [],
       createdAt: new Date(),
     });
     return res.status(200).json(result);
@@ -48,7 +49,7 @@ export default async function handler(
 
   if (req.method === "PUT") {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { id, name, color, icon } = body;
+    const { id, name, color, icon, professors } = body;
 
     if (!id) {
       return res.status(400).json({ error: "Missing subject id" });
@@ -68,6 +69,9 @@ export default async function handler(
       updateData.color = color;
     }
     if (icon) updateData.icon = icon;
+
+    if (professors)
+      updateData.professors = Array.isArray(professors) ? professors : [];
 
     const result = await subjects.updateOne(
       { _id: new ObjectId(id) },

@@ -3,6 +3,7 @@ import { Card, Button, Spin } from "antd";
 import dayjs from "dayjs";
 import * as AntdIcons from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import LoadingPage from "../components/Layout/LoadingPage";
 
 type EventItem = {
   _id?: string;
@@ -12,6 +13,7 @@ type EventItem = {
   date: string;
   year: string;
   location?: string;
+  professor?: string;
 };
 
 type SubjectItem = {
@@ -47,6 +49,7 @@ const Dashboard: React.FC = () => {
     setMainYear(saved);
 
     const fetchData = async () => {
+      setLoading(true);
       try {
         const yearParam = mainYear.startsWith("year")
           ? mainYear
@@ -67,6 +70,10 @@ const Dashboard: React.FC = () => {
     };
     fetchData();
   }, [mainYear]); // ✅ reload เมื่อเปลี่ยนปีหลัก
+
+  if (loading) {
+    return <LoadingPage />;
+  }
 
   const today = dayjs().format("YYYY-MM-DD");
   const eventsToday = events.filter((e) => e.date === today);
@@ -145,7 +152,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* ตารางเรียนวันนี้ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
             <Card
               title="ตารางเรียนวันนี้"
               className="rounded-xl shadow"
@@ -155,9 +162,9 @@ const Dashboard: React.FC = () => {
                 </span>
               }
             >
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {eventsToday.length === 0 ? (
-                  <p className="text-gray-400 text-center">
+                  <p className="text-gray-400 text-center col-span-2">
                     ไม่มีตารางเรียนวันนี้
                   </p>
                 ) : (
@@ -166,29 +173,40 @@ const Dashboard: React.FC = () => {
                     const IconComp = info
                       ? (AntdIcons as any)[info.icon]
                       : null;
+
                     return (
                       <div
                         key={ev._id || i}
-                        className="flex justify-between items-center p-2 border rounded"
+                        className="flex justify-between items-center p-3 border rounded-lg shadow-sm"
                       >
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                             {IconComp && (
-                              <IconComp style={{ color: info?.color }} />
+                              <IconComp
+                                style={{ color: info?.color, fontSize: 20 }}
+                              />
                             )}
-                            <p className="font-semibold">{ev.subject}</p>
+                            <p className="text-lg font-bold">{ev.subject}</p>
                           </div>
 
-                          {/* ✅ แสดงสถานที่ */}
+                          {/* ศาสตราจารย์ */}
+                          {ev.professor && (
+                            <p className="text-base font-medium text-gray-700 mt-1">
+                              👨‍🏫 Prof.{ev.professor}
+                            </p>
+                          )}
+
+                          {/* สถานที่ */}
                           {ev.location && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-sm text-gray-600 mt-1">
                               📍 {ev.location}
                             </p>
                           )}
                         </div>
 
+                        {/* เวลา */}
                         <span
-                          className="px-3 py-1 rounded text-sm"
+                          className="px-4 py-2 rounded-lg text-base font-semibold"
                           style={{
                             backgroundColor: info?.color
                               ? info.color + "20"
@@ -203,6 +221,7 @@ const Dashboard: React.FC = () => {
                   })
                 )}
               </div>
+
               <div className="mt-4 text-center">
                 <Button type="default" onClick={handleViewAll}>
                   ดูตารางเรียนทั้งหมด

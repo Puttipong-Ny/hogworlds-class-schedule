@@ -25,6 +25,7 @@ type EventItem = {
   date: string;
   year?: string;
   location?: string;
+  professor?: string;
 };
 
 type SubjectItem = {
@@ -32,6 +33,7 @@ type SubjectItem = {
   name: string;
   color: string;
   icon: string;
+  professors?: string[];
   createdAt?: string;
 };
 
@@ -158,7 +160,7 @@ const ScheduleMonth: React.FC = () => {
                     >
                       {getIcon(iconName, "white")}
                       <span className="truncate">
-                        {name} ({item.start}-{item.end})
+                        {name} ({item.start}) - Prof.{item.professor}
                       </span>
                     </div>
                   </li>
@@ -197,13 +199,13 @@ const ScheduleMonth: React.FC = () => {
           (sub.times || []).map(async (t: { start: Dayjs; end: Dayjs }) => {
             const newEvent: EventItem = {
               subject: sub.subject,
+              professor: sub.professor,
               start: t.start.format("HH:mm"),
               end: t.end.format("HH:mm"),
               date: selectedDate!.format("YYYY-MM-DD"),
               year,
-              location: sub.location, // ✅ เก็บสถานที่
+              location: sub.location,
             };
-
             return fetch(`/api/events?year=${year}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -230,7 +232,7 @@ const ScheduleMonth: React.FC = () => {
   const handleDelete = (item: EventItem) => {
     Modal.confirm({
       title: "ยืนยันการลบ",
-      content: `คุณแน่ใจหรือไม่ว่าต้องการลบ "${item.subject}" เวลา ${item.start}-${item.end}?`,
+      content: `คุณแน่ใจหรือไม่ว่าต้องการลบ "${item.subject}" เวลา ${item.start}?`,
       okText: "ลบ",
       cancelText: "ยกเลิก",
       okButtonProps: { danger: true },
@@ -323,167 +325,218 @@ const ScheduleMonth: React.FC = () => {
             <Form.List name="subjects">
               {(subjectFields, { add: addSubject, remove: removeSubject }) => (
                 <>
-                  {subjectFields.map(({ key, name, ...restField }) => (
-                    <div
-                      key={key}
-                      className="border p-3 rounded mb-4 bg-gray-50"
-                    >
-                      {/* เลือกวิชา */}
-                      <Form.Item
-                        {...restField}
-                        name={[name, "subject"]}
-                        label="วิชา"
-                        rules={[{ required: true, message: "กรุณาเลือกวิชา" }]}
-                      >
-                        <Select placeholder="เลือกวิชา">
-                          {subjects.map((s) => (
-                            <Select.Option key={s._id} value={s.name}>
-                              {getIcon(s.icon, s.color)} {s.name}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
+                  {subjectFields.map(({ key, name, ...restField }) => {
+                    // หา subject ที่เลือก
+                    const selectedSubjectName = form.getFieldValue([
+                      "subjects",
+                      name,
+                      "subject",
+                    ]);
+                    const selectedSubject = subjects.find(
+                      (s) => s.name === selectedSubjectName
+                    );
 
-                      {/* ✅ เลือกสถานที่ */}
-                      <Form.Item
-                        {...restField}
-                        name={[name, "location"]}
-                        label="สถานที่"
-                        rules={[
-                          { required: true, message: "กรุณาเลือกสถานที่" },
-                        ]}
+                    return (
+                      <div
+                        key={key}
+                        className="border p-3 rounded mb-4 bg-gray-50"
                       >
-                        <Select
-                          placeholder="เลือกสถานที่"
-                          allowClear
-                          showSearch
+                        {/* เลือกวิชา */}
+                        <Form.Item
+                          {...restField}
+                          name={[name, "subject"]}
+                          label="วิชา"
+                          rules={[
+                            { required: true, message: "กรุณาเลือกวิชา" },
+                          ]}
                         >
-                          {locations.map((loc) => (
-                            <Select.Option key={loc._id} value={loc.name}>
-                              {loc.name}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
+                          <Select placeholder="เลือกวิชา">
+                            {subjects.map((s) => (
+                              <Select.Option key={s._id} value={s.name}>
+                                {getIcon(s.icon, s.color)} {s.name}
+                              </Select.Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
 
-                      {/* ช่วงเวลาในวิชานั้น */}
-                      <Form.List name={[name, "times"]}>
-                        {(timeFields, { add: addTime, remove: removeTime }) => (
-                          <>
-                            {timeFields.map(
-                              ({
-                                key: timeKey,
-                                name: timeName,
-                                ...timeRest
-                              }) => (
-                                <div
-                                  key={timeKey}
-                                  className="flex items-center gap-2 mb-2"
+                        {/* ✅ เลือกศาสตราจารย์ */}
+                        {
+                          <Form.Item
+                            noStyle
+                            shouldUpdate={(prev, cur) =>
+                              prev.subjects?.[name]?.subject !==
+                              cur.subjects?.[name]?.subject
+                            }
+                          >
+                            {() => {
+                              const selectedSubjectName = form.getFieldValue([
+                                "subjects",
+                                name,
+                                "subject",
+                              ]);
+                              const selectedSubject = subjects.find(
+                                (s) => s.name === selectedSubjectName
+                              );
+
+                              return (
+                                <Form.Item
+                                  {...restField}
+                                  name={[name, "professor"]}
+                                  label="ศาสตราจารย์"
+                                  // rules={[
+                                  //   {
+                                  //     required: true,
+                                  //     message: "กรุณาเลือกศาสตราจารย์",
+                                  //   },
+                                  // ]}
                                 >
-                                  {/* โค้ดเดิมที่ใช้ 2 TimePicker (comment ไว้ก่อน) */}
-                                  {/*
-          <Form.Item
-            {...timeRest}
-            name={[timeName, "start"]}
-            rules={[{ required: true, message: "กรุณาเลือกเวลาเริ่ม" }]}
-            className="!mb-0"
-          >
-            <TimePicker
-              minuteStep={5}
-              needConfirm={false}
-              showNow={false}
-              format="HH:mm"
-              {...disabledConfig}
-            />
-          </Form.Item>
-          <span>ถึง</span>
-          <Form.Item
-            {...timeRest}
-            name={[timeName, "end"]}
-            rules={[{ required: true, message: "กรุณาเลือกเวลาสิ้นสุด" }]}
-            className="!mb-0"
-          >
-            <TimePicker
-              minuteStep={5}
-              needConfirm={false}
-              showNow={false}
-              format="HH:mm"
-              {...disabledConfig}
-            />
-          </Form.Item>
-          */}
-
-                                  {/* ✅ ใช้ TimePicker ตัวเดียว */}
-                                  <Form.Item
-                                    {...timeRest}
-                                    name={[timeName, "start"]}
-                                    rules={[
-                                      {
-                                        required: true,
-                                        message: "กรุณาเลือกเวลา",
-                                      },
-                                    ]}
-                                    className="!mb-0 flex-1"
+                                  <Select
+                                    placeholder="เลือกศาสตราจารย์"
+                                    disabled={!selectedSubject}
                                   >
-                                    <TimePicker
-                                      minuteStep={5}
-                                      needConfirm={false}
-                                      showNow={false}
-                                      format="HH:mm"
-                                      {...disabledConfig}
-                                      onChange={(val) => {
-                                        if (val) {
-                                          const end = val.add(1, "hour"); // ✅ auto +1 ชั่วโมง
-                                          form.setFieldValue(
-                                            [
-                                              "subjects",
-                                              name,
-                                              "times",
-                                              timeName,
-                                            ],
-                                            { start: val, end }
-                                          );
-                                        }
-                                      }}
-                                    />
-                                  </Form.Item>
+                                    {selectedSubject?.professors?.map(
+                                      (prof: string) => (
+                                        <Select.Option key={prof} value={prof}>
+                                          Prof.{prof}
+                                        </Select.Option>
+                                      )
+                                    )}
+                                  </Select>
+                                </Form.Item>
+                              );
+                            }}
+                          </Form.Item>
+                        }
 
+                        {/* เลือกสถานที่ */}
+                        <Form.Item
+                          {...restField}
+                          name={[name, "location"]}
+                          label="สถานที่"
+                          rules={[
+                            { required: true, message: "กรุณาเลือกสถานที่" },
+                          ]}
+                        >
+                          <Select
+                            placeholder="เลือกสถานที่"
+                            allowClear
+                            showSearch
+                          >
+                            {locations.map((loc) => (
+                              <Select.Option key={loc._id} value={loc.name}>
+                                {loc.name}
+                              </Select.Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+
+                        {/* เวลา */}
+                        <Form.Item
+                          label="เวลา"
+                          required
+                          rules={[
+                            {
+                              validator: async (_, value) => {
+                                if (
+                                  !value ||
+                                  value.length === 0 ||
+                                  !value[0]?.start
+                                ) {
+                                  return Promise.reject(
+                                    new Error("กรุณาเลือกเวลา")
+                                  );
+                                }
+                                return Promise.resolve();
+                              },
+                            },
+                          ]}
+                        >
+                          <Form.List name={[name, "times"]} initialValue={[{}]}>
+                            {(
+                              timeFields,
+                              { add: addTime, remove: removeTime }
+                            ) => (
+                              <>
+                                {timeFields.map(
+                                  ({
+                                    key: timeKey,
+                                    name: timeName,
+                                    ...timeRest
+                                  }) => (
+                                    <div
+                                      key={timeKey}
+                                      className="flex items-center gap-2 mb-2"
+                                    >
+                                      <Form.Item
+                                        {...timeRest}
+                                        name={[timeName, "start"]}
+                                        rules={[
+                                          {
+                                            required: true,
+                                            message: "กรุณาเลือกเวลา",
+                                          },
+                                        ]}
+                                        className="!mb-0 flex-1"
+                                        label={false} // 👈 ซ่อน label ของแต่ละแถว
+                                      >
+                                        <TimePicker
+                                          minuteStep={5}
+                                          format="HH:mm"
+                                          {...disabledConfig}
+                                          onChange={(val) => {
+                                            if (val) {
+                                              const end = val.add(30, "minute");
+                                              form.setFieldValue(
+                                                [
+                                                  "subjects",
+                                                  name,
+                                                  "times",
+                                                  timeName,
+                                                ],
+                                                { start: val, end }
+                                              );
+                                            }
+                                          }}
+                                        />
+                                      </Form.Item>
+
+                                      <button
+                                        type="button"
+                                        className="px-2 py-1 bg-red-500 text-white rounded"
+                                        onClick={() => removeTime(timeName)}
+                                      >
+                                        ลบ
+                                      </button>
+                                    </div>
+                                  )
+                                )}
+
+                                <Form.Item label={false}>
                                   <button
                                     type="button"
-                                    className="px-2 py-1 bg-red-500 text-white rounded"
-                                    onClick={() => removeTime(timeName)}
+                                    onClick={() => addTime()}
+                                    className="px-3 py-1 bg-blue-500 text-white rounded"
                                   >
-                                    ลบ
+                                    + เพิ่มช่วงเวลา
                                   </button>
-                                </div>
-                              )
+                                </Form.Item>
+                              </>
                             )}
+                          </Form.List>
+                        </Form.Item>
 
-                            <Form.Item>
-                              <button
-                                type="button"
-                                onClick={() => addTime()}
-                                className="px-3 py-1 bg-blue-500 text-white rounded"
-                              >
-                                + เพิ่มช่วงเวลา
-                              </button>
-                            </Form.Item>
-                          </>
-                        )}
-                      </Form.List>
+                        {/* ปุ่มลบวิชา */}
+                        <button
+                          type="button"
+                          className="px-3 py-1 bg-red-600 text-white rounded mt-2"
+                          onClick={() => removeSubject(name)}
+                        >
+                          ลบวิชา
+                        </button>
+                      </div>
+                    );
+                  })}
 
-                      {/* ปุ่มลบวิชา */}
-                      <button
-                        type="button"
-                        className="px-3 py-1 bg-red-600 text-white rounded mt-2"
-                        onClick={() => removeSubject(name)}
-                      >
-                        ลบวิชา
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* ปุ่มเพิ่มวิชา */}
                   <Form.Item>
                     <button
                       type="button"
@@ -528,7 +581,7 @@ const ScheduleMonth: React.FC = () => {
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       {getIcon(iconName, "white")}
                       <span className="truncate">
-                        {name} ({item.start}-{item.end}){" "}
+                        {name} ({item.start}){" "}
                         {item.location ? `📍${item.location}` : ""}
                       </span>
                     </div>

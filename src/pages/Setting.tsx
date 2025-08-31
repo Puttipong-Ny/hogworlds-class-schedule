@@ -49,6 +49,7 @@ type SubjectItem = {
   name: string;
   color: string;
   icon: string;
+  professors: string[];
 };
 const iconOptions = Object.keys(AntdIcons).map((key) => {
   const IconComponent = (AntdIcons as any)[key];
@@ -88,7 +89,6 @@ const Setting: React.FC = () => {
   const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(
     null
   );
-  const [subjectForm] = Form.useForm();
 
   // LOCATION state
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -97,6 +97,15 @@ const Setting: React.FC = () => {
   const [editingLocation, setEditingLocation] = useState<LocationItem | null>(
     null
   );
+
+  // PROFESSOR  state
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
+    null
+  );
+  const [professors, setProfessors] = useState<string[]>([]);
+  const [newProfessor, setNewProfessor] = useState<string>("");
+
+  const [subjectForm] = Form.useForm();
   const [locationForm] = Form.useForm();
 
   // ----------------------------- YEAR effect -----------------------------
@@ -109,6 +118,13 @@ const Setting: React.FC = () => {
       setMainYear(savedMain && arr.includes(savedMain) ? savedMain : arr[0]);
     }
   }, []);
+
+  useEffect(() => {
+    if (selectedSubjectId) {
+      const subj = subjects.find((s) => s._id === selectedSubjectId);
+      setProfessors(subj?.professors || []);
+    }
+  }, [selectedSubjectId, subjects]);
 
   const handleYearChange = (vals: string[]) => {
     if (vals.length === 0) {
@@ -128,6 +144,39 @@ const Setting: React.FC = () => {
         ", "
       )}`
     );
+  };
+
+  const handleAddProfessor = () => {
+    if (!newProfessor) return;
+    if (professors.includes(newProfessor)) {
+      message.warning("ศาสตราจารย์นี้มีอยู่แล้ว");
+      return;
+    }
+    setProfessors([...professors, newProfessor]);
+    setNewProfessor("");
+  };
+
+  const handleRemoveProfessor = (name: string) => {
+    setProfessors(professors.filter((p) => p !== name));
+  };
+
+  const handleSaveProfessors = async () => {
+    if (!selectedSubjectId) {
+      message.warning("กรุณาเลือกวิชา");
+      return;
+    }
+    try {
+      await fetch("/api/subjects", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedSubjectId, professors }),
+      });
+      message.success("บันทึกอาจารย์เรียบร้อย ✅");
+      fetchSubjects(); // reload list subjects
+    } catch (err) {
+      console.error(err);
+      message.error("บันทึกไม่สำเร็จ ❌");
+    }
   };
 
   // ----------------------------- SUBJECT CRUD -----------------------------
@@ -158,7 +207,9 @@ const Setting: React.FC = () => {
             ? values.color
             : values.color.toHexString(),
         icon: values.icon,
+        professors: values.professors || [], // ✅ เก็บ array
       };
+
       setSubjectLoading(true);
       if (editingSubject) {
         await fetch("/api/subjects", {
@@ -251,10 +302,17 @@ const Setting: React.FC = () => {
       title: "ไอคอน",
       dataIndex: "icon",
       key: "icon",
+      width: 80,
       render: (icon: string) => {
         const IconComponent = (AntdIcons as any)[icon];
         return IconComponent ? <IconComponent /> : icon;
       },
+    },
+    {
+      title: "อาจารย์ผู้สอน",
+      dataIndex: "professors",
+      key: "professors",
+      render: (list: string[]) => list?.join(", "),
     },
     {
       title: "จัดการ",
@@ -384,6 +442,58 @@ const Setting: React.FC = () => {
           </Row>
         </Card>
       </Col>
+      {/* PROFESSORS */}
+      <Col span={12}>
+        <Card>
+          <div className="flex justify-between items-center mb-3">
+            <Title level={3}>👨‍🏫 ตั้งค่าศาสตราจารย์</Title>
+          </div>
+
+          {/* เลือกวิชา */}
+          <Select
+            className="w-full mb-3"
+            placeholder="เลือกวิชา"
+            value={selectedSubjectId || undefined}
+            onChange={(val) => setSelectedSubjectId(val)}
+            options={subjects.map((s) => ({ label: s.name, value: s._id! }))}
+          />
+
+          {/* แสดงรายชื่ออาจารย์ */}
+          <ul className="mb-3">
+            {professors.map((p) => (
+              <li
+                key={p}
+                className="flex justify-between items-center border p-1 rounded mb-1"
+              >
+                <span>{p}</span>
+                <Button
+                  danger
+                  size="small"
+                  onClick={() => handleRemoveProfessor(p)}
+                >
+                  ลบ
+                </Button>
+              </li>
+            ))}
+          </ul>
+
+          {/* เพิ่มอาจารย์ใหม่ */}
+          <Space className="mb-3">
+            <Input
+              placeholder="ชื่ออาจารย์ใหม่"
+              value={newProfessor}
+              onChange={(e) => setNewProfessor(e.target.value)}
+            />
+            <Button type="primary" onClick={handleAddProfessor}>
+              เพิ่ม
+            </Button>
+          </Space>
+
+          <Button type="primary" onClick={handleSaveProfessors}>
+            บันทึก
+          </Button>
+        </Card>
+      </Col>
 
       {/* SUBJECT */}
       <Row gutter={[16, 24]}>
@@ -418,6 +528,7 @@ const Setting: React.FC = () => {
           open={isSubjectModal}
           onOk={handleSubjectOk}
           onCancel={() => setIsSubjectModal(false)}
+          confirmLoading={subjectLoading}
         >
           <Form form={subjectForm} layout="vertical">
             <Form.Item
@@ -427,12 +538,44 @@ const Setting: React.FC = () => {
             >
               <Input />
             </Form.Item>
+
             <Form.Item name="color" label="สี" rules={[{ required: true }]}>
               <ColorPicker format="hex" />
             </Form.Item>
+
             <Form.Item name="icon" label="ไอคอน" rules={[{ required: true }]}>
               <Select options={iconOptions} showSearch />
             </Form.Item>
+
+            {/* ✅ Professors */}
+            <Form.List name="professors">
+              {(fields, { add, remove }) => (
+                <>
+                  <label>อาจารย์ผู้สอน</label>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space
+                      key={key}
+                      align="baseline"
+                      style={{ display: "flex", marginBottom: 8 }}
+                    >
+                      <Form.Item
+                        {...restField}
+                        name={name}
+                        rules={[{ required: true, message: "กรอกชื่ออาจารย์" }]}
+                      >
+                        <Input placeholder="ชื่ออาจารย์" />
+                      </Form.Item>
+                      <Button type="link" danger onClick={() => remove(name)}>
+                        ลบ
+                      </Button>
+                    </Space>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} block>
+                    + เพิ่มอาจารย์
+                  </Button>
+                </>
+              )}
+            </Form.List>
           </Form>
         </Modal>
 
@@ -469,6 +612,7 @@ const Setting: React.FC = () => {
         open={isLocationModal}
         onOk={() => locationForm.submit()}
         onCancel={() => setIsLocationModal(false)}
+        confirmLoading={locationLoading}
       >
         <Form form={locationForm} layout="vertical" onFinish={handleLocationOk}>
           <Form.Item

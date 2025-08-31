@@ -47,7 +47,7 @@ export default async function handler(
 
   if (req.method === "POST") {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { subject, start, end, date, location } = body; 
+    const { subject, start, end, date, location, professor } = body; 
 
     const year = body.year || query.year;
 
@@ -57,6 +57,7 @@ export default async function handler(
       end,
       date,
       year,
+      professor,
       location, 
     });
 

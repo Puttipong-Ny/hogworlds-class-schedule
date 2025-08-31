@@ -14,6 +14,7 @@ type EventItem = {
   end: string;
   date: string;
   year?: string;
+  professor?: string;
 };
 
 const days = [
@@ -254,9 +255,7 @@ const ScheduleWeek: React.FC = () => {
                     return (
                       <Tooltip
                         key={ev._id}
-                        title={`${subject?.name || ev.subject} (${ev.start} - ${
-                          ev.end
-                        })`}
+                        title={`${subject?.name || ev.subject} (${ev.start})${ev.professor ? ` - Prof.${ev.professor}` : ""}`}
                       >
                         <div
                           className="absolute h-7 flex items-center gap-2 px-3 text-xs font-semibold text-white rounded-lg shadow-md"
@@ -269,7 +268,8 @@ const ScheduleWeek: React.FC = () => {
                         >
                           {getIcon(iconName, "white")}
                           <span className="truncate text-center w-full">
-                            {subject?.name || ev.subject} ({ev.start}-{ev.end})
+                            {subject?.name || ev.subject} ({ev.start})
+                            {ev.professor ? ` - Prof.${ev.professor}` : ""}
                           </span>
                         </div>
                       </Tooltip>
