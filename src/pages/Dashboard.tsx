@@ -111,7 +111,7 @@ const Dashboard: React.FC = () => {
 
         {/* ✅ ปุ่มเลือกปีหลัก */}
         <div className="flex gap-2">
-          {["1", "2", "3"].map((y) => (
+          {["1", "2", "3", "4", "5", "6", "7"].map((y) => (
             <Button
               key={y}
               type={mainYear === y ? "primary" : "default"}
