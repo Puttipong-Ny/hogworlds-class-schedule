@@ -34,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
   const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   // ✅ อ่านค่าชั้นปีและ flag จาก cookie
-  const allYears = ["1", "2", "3"];
+  const allYears = ["1", "2", "3", "4", "5", "6", "7"];
   const savedYears = getCookie("userYears")?.split(",") || allYears;
   // ✅ สร้างเมนูรายปี
   const classScheduleChildren: MenuProps["items"] = [];
@@ -144,6 +144,42 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
       icon: <ScheduleOutlined />,
       label: "ปี 3",
       onClick: () => navigate("/year3/schedule"),
+    });
+  }
+
+  if (savedYears.includes("4")) {
+    classScheduleChildren.push({
+      key: "/year4/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 4",
+      onClick: () => navigate("/year4/schedule"),
+    });
+  }
+
+  if (savedYears.includes("5")) {
+    classScheduleChildren.push({
+      key: "/year5/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 5",
+      onClick: () => navigate("/year5/schedule"),
+    });
+  }
+
+  if (savedYears.includes("6")) {
+    classScheduleChildren.push({
+      key: "/year6/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 6",
+      onClick: () => navigate("/year6/schedule"),
+    });
+  }
+
+  if (savedYears.includes("7")) {
+    classScheduleChildren.push({
+      key: "/year7/schedule",
+      icon: <ScheduleOutlined />,
+      label: "ปี 7",
+      onClick: () => navigate("/year7/schedule"),
     });
   }
 
