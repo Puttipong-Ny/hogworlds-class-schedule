@@ -9,7 +9,7 @@ async function connectDB() {
     client = new MongoClient(process.env.MONGO_URI!);
     await client.connect();
   }
-  return client.db("slytherin").collection("subjects");
+  return client.db("ravenclaw").collection("subjects");
 }
 
 export default async function handler(

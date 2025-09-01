@@ -8,7 +8,7 @@ async function connectDB() {
     client = new MongoClient(process.env.MONGO_URI!);
     await client.connect();
   }
-  return client.db("slytherin").collection("subjects");
+  return client.db("ravenclaw").collection("subjects");
 }
 
 export default async function handler(
@@ -91,7 +91,7 @@ export default async function handler(
 
       const result = await subjects.deleteOne({ _id: new ObjectId(body.id) });
 
-      const eventsCol = client.db("slytherin").collection("events");
+      const eventsCol = client.db("ravenclaw").collection("events");
       await eventsCol.deleteMany({ subject: subject.name });
 
       return res.status(200).json(result);
