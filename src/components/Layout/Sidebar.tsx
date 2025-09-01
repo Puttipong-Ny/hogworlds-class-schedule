@@ -11,7 +11,7 @@ import {
   EnvironmentOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
-import logo from "../../assets/ravenclaw.png";
+import logo from "../../assets/slytherin.png";
 
 const { Sider } = Layout;
 
@@ -229,9 +229,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
     >
       {/* Logo + Title */}
       <div className="flex items-center justify-center p-3 border-b">
-        <img src={logo} alt="Ravenclaw" className="h-10 w-10 mr-2" />
+        <img src={logo} alt="Slytherin" className="h-10 w-10 mr-2" />
         {!collapsed && (
-          <span className="font-bold text-lg text-black">Ravenclaw</span>
+          <span className="font-bold text-lg text-black">Slytherin</span>
         )}
       </div>
 
