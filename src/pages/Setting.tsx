@@ -79,8 +79,9 @@ const typeOptions = [
 // ----------------------------- MAIN COMPONENT -----------------------------
 const Setting: React.FC = () => {
   // YEAR state
-  const [years, setYears] = useState<string[]>(["1"]);
-  const [mainYear, setMainYear] = useState<string>("1");
+  const allYears = yearOptions.map((y) => y.value);
+  const [years, setYears] = useState<string[]>(allYears);
+  const [mainYear, setMainYear] = useState<string>(allYears[0]);
 
   // SUBJECT state
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -116,6 +117,9 @@ const Setting: React.FC = () => {
       const arr = savedYears.split(",");
       setYears(arr);
       setMainYear(savedMain && arr.includes(savedMain) ? savedMain : arr[0]);
+    } else {
+      setYears(allYears);
+      setMainYear(allYears[0]);
     }
   }, []);
 
@@ -623,11 +627,7 @@ const Setting: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="floor" label="ชั้น" rules={[{ required: true }]}>
-            <InputNumber
-              style={{ width: "100%" }}
-              min={-5} 
-              max={5} 
-            />
+            <InputNumber style={{ width: "100%" }} min={-5} max={5} />
           </Form.Item>
 
           <Form.Item

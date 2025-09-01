@@ -34,8 +34,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleCollapse }) => {
   const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   // ✅ อ่านค่าชั้นปีและ flag จาก cookie
-  const savedYears = getCookie("userYears")?.split(",") || ["1"];
-  const mainYear = getCookie("mainYear") || savedYears[0] || "1";
+  const allYears = ["1", "2", "3"];
+  const savedYears = getCookie("userYears")?.split(",") || allYears;
   // ✅ สร้างเมนูรายปี
   const classScheduleChildren: MenuProps["items"] = [];
 
