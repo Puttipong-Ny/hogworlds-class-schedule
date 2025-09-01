@@ -30,6 +30,10 @@ const yearOptions = [
   { label: "ปี 1", value: "1" },
   { label: "ปี 2", value: "2" },
   { label: "ปี 3", value: "3" },
+  { label: "ปี 4", value: "4" },
+  { label: "ปี 5", value: "5" },
+  { label: "ปี 6", value: "6" },
+  { label: "ปี 7", value: "7" },
 ];
 
 function getCookie(name: string) {
